@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>冰域 ERP 预览</title>
+  <style>
+    *{box-sizing:border-box}html,body{height:100%;overflow:hidden}body{margin:0;background:#f4f6f9;color:#1d2939;font:14px Arial,"Microsoft YaHei",sans-serif}.app{height:100vh;display:grid;grid-template-rows:66px 1fr;overflow:hidden}
+    .topbar{background:#17263c;color:#fff;padding:0 20px;display:flex;align-items:center;gap:18px}.brand{display:flex;gap:12px;align-items:center;flex:0 0 auto}.logo{width:38px;height:38px;border-radius:9px;background:#3568e8;display:grid;place-items:center;font-weight:bold}.brand b,.brand small{display:block}.brand small{color:#8997aa;margin-top:4px}
+    nav{flex:1;display:flex;align-items:center;gap:5px;overflow-x:auto}nav button{border:0;background:transparent;color:#aeb8c8;padding:10px 11px;text-align:left;border-radius:7px;white-space:nowrap}nav button.active,nav button:hover{background:#243955;color:#fff}.user{border-left:1px solid #2c3d53;padding-left:14px;color:#b6c0ce;white-space:nowrap}
+    header{height:78px;background:#fff;border-bottom:1px solid #e5e9f0;padding:0 30px;display:flex;align-items:center;justify-content:space-between}header h2{margin:0 0 4px;font-size:19px}header small{color:#8792a0}.actions{display:flex;gap:10px}.actions input{border:1px solid #dfe4eb;border-radius:7px;padding:9px 13px;width:220px}.primary{border:0;border-radius:6px;background:#3165e8;color:#fff;padding:9px 15px}
+    main{min-width:0;min-height:0;display:grid;grid-template-rows:78px 1fr;overflow:hidden}.content{min-height:0;overflow:auto;padding:24px 30px}.welcome{background:linear-gradient(110deg,#274f90,#1e3d70);color:#fff;border-radius:10px;padding:24px 27px;display:flex;justify-content:space-between;align-items:center}.welcome h1{font-size:22px;margin:7px 0}.welcome p{margin:0;color:#c1cde0}.welcome button{background:#fff;color:#285096;border:0;border-radius:6px;padding:10px 15px}
+    .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:18px 0}.card,.panel{background:#fff;border:1px solid #e4e9ef;border-radius:9px}.card{padding:18px}.card span,.card small{display:block;color:#7f8997}.card b{display:block;font-size:25px;margin:7px 0}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.panel h3{margin:0;padding:18px 20px;border-bottom:1px solid #edf0f4;font-size:14px}.panel-body{padding:20px;min-height:205px}
+    .row{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #eef1f4}.tag{border-radius:20px;padding:4px 9px;font-size:11px;background:#fff0dc;color:#ad6a18}.tag.red{background:#ffe9e9;color:#c74343}.bar{height:7px;background:#edf0f4;border-radius:4px;margin:8px 0 15px;overflow:hidden}.bar i{display:block;height:100%;background:#3568e8;border-radius:4px}.note{position:fixed;right:22px;bottom:20px;background:#17263c;color:#fff;padding:11px 15px;border-radius:7px}
+    .data-panel{margin-top:16px}.data-wrap{max-height:240px;overflow:auto;overscroll-behavior:contain;border-top:1px solid #edf0f4}table{min-width:1200px;width:max-content;border-collapse:collapse;white-space:nowrap}th{position:sticky;top:0;background:#f8f9fb;color:#727e8e;font-size:11px;text-align:left;padding:11px 14px}td{border-top:1px solid #eef1f4;padding:12px 14px;font-size:12px}
+    @media(max-width:900px){.brand div:last-child,.user{display:none}.metrics{grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="app">
+  <section class="topbar">
+    <div class="brand"><div class="logo">冰</div><div><b>冰域 ERP</b><small>跨境运营工作台</small></div></div>
+    <nav>
+      <button class="active">▦　<span>管理看板</span></button><button>▣　<span>商品与 SKU</span></button>
+      <button>▤　<span>SHEIN 订单</span></button><button>➤　<span>发货管理</span></button>
+      <button>▥　<span>库存与流水</span></button><button>↗　<span>补货建议</span></button>
+      <button>＋　<span>采购与到货</span></button><button>△　<span>异常中心</span></button>
+    </nav>
+    <div class="user">闫星宇<br><small>管理员</small></div>
+  </section>
+  <main>
+    <header><div><h2>管理看板</h2><small>轻量跨境电商 ERP V1</small></div><div class="actions"><input placeholder="搜索 SKU / 订单号"><button class="primary">导入订单</button></div></header>
+    <div class="content">
+      <section class="welcome"><div><small>运营总览</small><h1>早上好，闫星宇</h1><p>今天有 2 个订单待发，3 项库存与补货事项需要关注。</p></div><button>查看待办 ›</button></section>
+      <section class="metrics">
+        <div class="card"><span>今日订单</span><b>2</b><small>来源：SHEIN Excel</small></div>
+        <div class="card"><span>待发货</span><b>2</b><small>需在截止时间前处理</small></div>
+        <div class="card"><span>SKU 档案</span><b>53</b><small>已从参考表初始化</small></div>
+        <div class="card"><span>采购在途</span><b>20</b><small>1 张采购单</small></div>
+      </section>
+      <section class="grid">
+        <div class="panel"><h3>订单履约</h3><div class="panel-body">
+          <div class="row"><span>订单总数</span><b>2</b></div><div class="row"><span>待发货</span><span class="tag">2</span></div><div class="row"><span>SKU 映射异常</span><span class="tag red">0</span></div>
+        </div></div>
+        <div class="panel"><h3>库存健康</h3><div class="panel-body">
+          <div>蝴蝶结格子制服套装深灰 S <b style="float:right">可用 0</b></div><div class="bar"><i style="width:15%"></i></div>
+          <div>蝴蝶结格子制服套装浅灰 M <b style="float:right">可用 0</b></div><div class="bar"><i style="width:15%"></i></div>
+          <div>YC2001 <b style="float:right">在途 20</b></div><div class="bar"><i style="width:65%"></i></div>
+        </div></div>
+        <div class="panel"><h3>待办事项</h3><div class="panel-body">
+          <div class="row"><span>订单待生成发货单</span><span class="tag">2</span></div><div class="row"><span>SKU 建议补货</span><span class="tag red">3</span></div><div class="row"><span>采购预计到货</span><b>06-25</b></div>
+        </div></div>
+        <div class="panel"><h3>系统范围</h3><div class="panel-body">
+          <div class="row"><span>Excel 导入与导出</span><b>已实现</b></div><div class="row"><span>多仓库存与流水</span><b>已实现</b></div><div class="row"><span>物流平台 API</span><small>暂不对接</small></div>
+        </div></div>
+      </section>
+      <section class="panel data-panel"><h3>表格数据区域（仅这里滚动）</h3><div class="data-wrap"><table><thead><tr><th>订单号</th><th>创建时间</th><th>要求发货</th><th>卖家SKU</th><th>统一SKU</th><th>商品名称</th><th>数量</th><th>仓库</th><th>状态</th></tr></thead><tbody>
+        <tr><td>GSH17R077000VQY</td><td>2026-Jun-13 18:03</td><td>2026-Jun-16 22:59</td><td>蝴蝶结格子制服套装深灰S</td><td>蝴蝶结格子制服套装深灰S</td><td>JK 4点セット 可愛いクラシック 女子高生コーデ</td><td>1</td><td>义乌一仓</td><td>待发货</td></tr>
+        <tr><td>GSH17S07B00MRDF</td><td>2026-Jun-14 22:54</td><td>2026-Jun-16 22:59</td><td>蝴蝶结格子制服套装浅灰M</td><td>蝴蝶结格子制服套装浅灰M</td><td>JK 4点セット 可愛いクラシック 女子高生コーデ</td><td>1</td><td>义乌一仓</td><td>待发货</td></tr>
+      </tbody></table></div></section>
+    </div>
+  </main>
+</div>
+<div class="note">静态视觉预览已启动，完整交互版等待 npm 依赖安装</div>
+</body>
+</html>
