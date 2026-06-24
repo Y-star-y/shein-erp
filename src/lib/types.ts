@@ -1,6 +1,7 @@
 export type Sku = {
   id: string;
   code: string;
+  fnsku: string;
   sellerSku: string;
   platformSku: string;
   platformSkc: string;
@@ -46,16 +47,113 @@ export type Stock = {
   quantity: number;
 };
 
+export type InventorySnapshot = {
+  id: string;
+  fnsku: string;
+  sellerSku: string;
+  skuCode?: string;
+  productName: string;
+  warehouseName: string;
+  dropshipTransitQty: number;
+  dropshipStockQty: number;
+  transferTransitQty: number;
+  transferStockQty: number;
+  pendingQty: number;
+  sales10d: number;
+  sales30d: number;
+  stockAgeDays: number;
+  volume: number;
+  sourceWarningQty: number;
+  inboundAt: string;
+  matchedStatus: "已匹配" | "未匹配";
+};
+
+export type InventoryImportJob = {
+  id: string;
+  filename: string;
+  importedAt: string;
+  totalRows: number;
+  matchedRows: number;
+  exceptionRows: number;
+};
+
+export type SheinMappedRow = {
+  id: string;
+  companyName: string;
+  storeName: string;
+  operatorName: string;
+  image: string;
+  productSku: string;
+  quantity: string;
+  orderNo: string;
+  recipientName: string;
+  recipientPhone: string;
+  recipientAddress: string;
+  recipientPostalCode: string;
+  productName: string;
+  orderCreatedAt: string;
+  orderSignedAt: string;
+  orderOperatedAt: string;
+  warehouseName: string;
+  shippingChannel: string;
+  processingStatus: string;
+  logisticsNo: string;
+  logisticsCompany: string;
+  trackingUploadStatus: string;
+  remark: string;
+};
+
+export type SheinOrderMappingResult = {
+  filename: string;
+  importedAt: string;
+  totalRows: number;
+  mappedRows: number;
+  rows: SheinMappedRow[];
+};
+
+export type ProductWarehouseStock = {
+  warehouseName: string;
+  totalStock: string;
+  transitStock: string;
+  warningStandard: string;
+  stockStatus: string;
+};
+
+export type ProductSku = {
+  id: string;
+  sku: string;
+  imageUrl: string;
+  productName: string;
+  shippingName: string;
+  warehouse?: string;
+  totalStock?: string;
+  transitStock?: string;
+  warningStandard?: string;
+  stockStatus?: string;
+  warehouseStocks: ProductWarehouseStock[];
+  unitPrice: string;
+  supplierLink: string;
+  purchaseLeadTime: string;
+  storeName: string;
+  status: "待补全" | "已确认";
+  source: "手动新增" | "SHEIN订单";
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type Movement = {
   id: string;
   date: string;
   warehouse: string;
   skuCode: string;
+  sellerSku: string;
   type: string;
   inbound: number;
   outbound: number;
   referenceNo: string;
   reason: string;
+  beforeQty: number;
+  afterQty: number;
 };
 
 export type Shipment = {
@@ -110,6 +208,8 @@ export type ErpState = {
   skus: Sku[];
   orders: Order[];
   stocks: Stock[];
+  inventorySnapshots: InventorySnapshot[];
+  inventoryImportJobs: InventoryImportJob[];
   movements: Movement[];
   shipments: Shipment[];
   shipmentDrafts: ShipmentDraft[];
@@ -119,11 +219,13 @@ export type ErpState = {
 };
 
 export type PageKey =
-  | "dashboard"
-  | "products"
-  | "orders"
-  | "shipments"
-  | "inventory"
-  | "replenishment"
-  | "purchases"
-  | "exceptions";
+  | "productInfo"
+  | "inboundLog"
+  | "outboundLog"
+  | "orderImport"
+  | "trackingUpload"
+  | "orderExceptions"
+  | "returns"
+  | "stockValue"
+  | "skuSales"
+  | "turnover";

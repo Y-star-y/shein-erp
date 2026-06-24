@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { availableStock, matchOrder, orderKey, suggestedQuantity } from "./business";
+import {
+  availableStock,
+  createSkuDraftFromOrder,
+  inventoryForOrder,
+  matchInventorySnapshot,
+  matchOrder,
+  orderKey,
+} from "./business";
 import { demoState } from "./demo-data";
+import type { InventorySnapshot } from "./types";
 
 describe("ERP business rules", () => {
   const order = {
@@ -34,7 +42,54 @@ describe("ERP business rules", () => {
     expect(availableStock({ ...demoState, orders: [order] }, demoState.skus[0].code)).toBe(-1);
   });
 
-  it("never suggests a negative purchase quantity", () => {
-    expect(suggestedQuantity(demoState, demoState.skus[0])).toBeGreaterThanOrEqual(0);
+  it("creates a pending sku draft from a new order seller sku", () => {
+    const draft = createSkuDraftFromOrder({ ...order, sellerSku: "NEW-SELLER-SKU", productName: "新商品" });
+    expect(draft.sellerSku).toBe("NEW-SELLER-SKU");
+    expect(draft.code).toBe("NEW-SELLER-SKU");
+    expect(draft.confirmStatus).toBe("待确认");
+  });
+
+  it("matches inventory snapshots by seller sku first", () => {
+    const snapshot = inventoryRow({ sellerSku: demoState.skus[0].sellerSku, fnsku: "UNKNOWN" });
+    expect(matchInventorySnapshot(snapshot, demoState.skus).skuCode).toBe(demoState.skus[0].code);
+  });
+
+  it("matches inventory snapshots by fnsku when seller sku is unknown", () => {
+    const sku = { ...demoState.skus[0], fnsku: "FNSKU-001" };
+    const snapshot = inventoryRow({ sellerSku: "UNKNOWN", fnsku: "FNSKU-001" });
+    expect(matchInventorySnapshot(snapshot, [sku]).skuCode).toBe(sku.code);
+  });
+
+  it("finds inventory for an order by seller sku and order warehouse first", () => {
+    const snapshot = {
+      ...inventoryRow({ sellerSku: order.sellerSku, warehouseName: order.warehouse, dropshipStockQty: 11 }),
+      skuCode: "SKU-1",
+      matchedStatus: "已匹配" as const,
+    };
+    expect(inventoryForOrder({ ...demoState, inventorySnapshots: [snapshot] }, order)?.dropshipStockQty).toBe(11);
   });
 });
+
+function inventoryRow(
+  patch: Partial<Omit<InventorySnapshot, "skuCode" | "matchedStatus">>,
+): Omit<InventorySnapshot, "skuCode" | "matchedStatus"> {
+  return {
+    id: "inventory-test",
+    fnsku: "",
+    sellerSku: "SELLER-1",
+    productName: "测试商品",
+    warehouseName: "川崎日本倉庫",
+    dropshipTransitQty: 0,
+    dropshipStockQty: 0,
+    transferTransitQty: 0,
+    transferStockQty: 0,
+    pendingQty: 0,
+    sales10d: 0,
+    sales30d: 0,
+    stockAgeDays: 0,
+    volume: 0,
+    sourceWarningQty: 0,
+    inboundAt: "",
+    ...patch,
+  };
+}
