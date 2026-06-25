@@ -3,37 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint .",
-    "test": "vitest run",
+    "dev": "pnpm --filter @shein-erp/web dev",
+    "build": "pnpm --filter @shein-erp/web build",
+    "start": "pnpm --filter @shein-erp/web start",
+    "lint": "pnpm --filter @shein-erp/web lint",
+    "test": "pnpm --filter @shein-erp/core test",
     "seed:excel": "python3 scripts/extract_reference.py",
-    "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
-    "db:seed": "tsx prisma/seed.ts"
-  },
-  "dependencies": {
-    "@prisma/client": "^6.9.0",
-    "lucide-react": "^0.468.0",
-    "next": "^15.3.3",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "xlsx": "^0.18.5",
-    "zod": "^3.24.2"
-  },
-  "devDependencies": {
-    "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "^15.3.3",
-    "prisma": "^6.9.0",
-    "tailwindcss": "^4",
-    "tsx": "^4.19.3",
-    "typescript": "^5",
-    "vitest": "^3.1.4"
+    "db:generate": "pnpm --filter @shein-erp/web db:generate",
+    "db:migrate": "pnpm --filter @shein-erp/web db:migrate",
+    "db:seed": "pnpm --filter @shein-erp/web db:seed"
   }
 }

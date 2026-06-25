@@ -17,7 +17,7 @@ def number(value, default=0):
 
 
 source = Path(sys.argv[1] if len(sys.argv) > 1 else "/Users/yanxingyu/ai/跨境电商ERP_WPS完整业务版.xlsx")
-target = Path(sys.argv[2] if len(sys.argv) > 2 else "src/lib/reference-data.json")
+target = Path(sys.argv[2] if len(sys.argv) > 2 else "packages/core/src/reference-data.json")
 workbook = openpyxl.load_workbook(source, read_only=True, data_only=True)
 
 sku_sheet = workbook["01_SKU映射"]

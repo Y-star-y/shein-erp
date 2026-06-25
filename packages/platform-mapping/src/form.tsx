@@ -1,0 +1,96 @@
+"use client";
+
+import {
+  AppSelect,
+  FormSection,
+  TextField,
+  platformOptions,
+  statusOptions,
+  type CompanySku,
+  type FormErrors,
+  type PlatformSkuMapping,
+  type PlatformSkuMappingStatus,
+  type SelectOption,
+} from "@shein-erp/shared";
+import type { FormEvent } from "react";
+
+export function MappingForm({
+  activeCompanySkus,
+  companySkus,
+  errors,
+  mode,
+  onChange,
+  onSubmit,
+  value,
+}: {
+  activeCompanySkus: CompanySku[];
+  companySkus: CompanySku[];
+  errors: FormErrors;
+  mode: "create" | "edit";
+  onChange: (value: PlatformSkuMapping) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  value: PlatformSkuMapping;
+}) {
+  const selectedCompanySku = companySkus.find((item) => item.platformSkc === value.platformSkc);
+  const companyOptions: SelectOption[] = activeCompanySkus.map((item) => ({
+    label: `${item.platformSkc} · ${item.productNameCn}`,
+    value: item.platformSkc,
+    description: item.supplierUrl || item.color || undefined,
+  }));
+
+  if (mode === "edit" && selectedCompanySku && selectedCompanySku.status === "inactive") {
+    companyOptions.unshift({
+      label: `${selectedCompanySku.platformSkc} · ${selectedCompanySku.productNameCn}（已停用）`,
+      value: selectedCompanySku.platformSkc,
+      description: "已有映射保留，但不建议继续使用",
+      disabled: true,
+    });
+  }
+
+  function setField<K extends keyof PlatformSkuMapping>(field: K, fieldValue: PlatformSkuMapping[K]) {
+    onChange({ ...value, [field]: fieldValue });
+  }
+
+  return (
+    <form className="modal-form" noValidate onSubmit={onSubmit}>
+      <FormSection title="平台信息">
+        <AppSelect
+          error={errors.platform}
+          label="平台"
+          onChange={(fieldValue) => setField("platform", fieldValue)}
+          options={platformOptions}
+          value={value.platform}
+        />
+        <TextField error={errors.platformSku} label="平台 SKU" required value={value.platformSku} onChange={(fieldValue) => setField("platformSku", fieldValue)} />
+        <AppSelect
+          error={errors.platformSkc}
+          label="关联公司 SKU"
+          onChange={(fieldValue) => setField("platformSkc", fieldValue)}
+          options={companyOptions}
+          placeholder="选择启用的公司 SKU"
+          value={value.platformSkc}
+        />
+      </FormSection>
+      <FormSection title="SHEIN 字段">
+        <TextField label="SHEIN 商品 ID" value={value.sheinProductId} onChange={(fieldValue) => setField("sheinProductId", fieldValue)} />
+        <TextField label="平台 SPU" value={value.platformSpu} onChange={(fieldValue) => setField("platformSpu", fieldValue)} />
+        <TextField label="seller SKU" value={value.sellerSku} onChange={(fieldValue) => setField("sellerSku", fieldValue)} />
+        <TextField label="SHEIN 商品名" value={value.sheinProductName} onChange={(fieldValue) => setField("sheinProductName", fieldValue)} />
+      </FormSection>
+      <FormSection title="状态 / 备注">
+        <AppSelect
+          error={errors.status}
+          label="映射状态"
+          onChange={(fieldValue) => setField("status", fieldValue as PlatformSkuMappingStatus)}
+          options={statusOptions}
+          value={value.status}
+        />
+        <TextField label="备注" multiline value={value.remark} onChange={(fieldValue) => setField("remark", fieldValue)} />
+      </FormSection>
+      <div className="modal-actions">
+        <span>{mode === "create" ? "一个平台 SKU 只能绑定一个公司 SKU。" : `创建时间：${value.createdAt}`}</span>
+        <button className="primary-btn" type="submit">保存</button>
+      </div>
+    </form>
+  );
+}

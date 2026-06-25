@@ -1,0 +1,19 @@
+{
+  "name": "@shein-erp/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "typescript": "^5",
+    "vitest": "^3.1.4"
+  },
+  "scripts": {
+    "test": "vitest run"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "@shein-erp/platform-mapping",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@shein-erp/company-sku": "workspace:*",
+    "@shein-erp/shared": "workspace:*"
+  },
+  "peerDependencies": {
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "typescript": "^5"
+  }
+}

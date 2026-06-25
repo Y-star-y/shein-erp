@@ -2,11 +2,38 @@
 
 轻量跨境电商 ERP V1，覆盖 SHEIN Excel 订单导入、SKU 映射、发货出库、多仓库存、补货建议、采购物流、分批到货、异常中心和 Excel 导出。
 
+## Monorepo 结构
+
+```
+apps/web                    Next.js 壳应用（路由、布局、组装各模块）
+packages/
+  shared                    共享类型、UI 组件、全局状态（ErpProvider）
+  ops-console               运营台（仪表盘、指标、维护记录）
+  company-sku               公司 SKU（主档 CRUD、校验）
+  platform-mapping          平台映射（关联公司 SKU、SHEIN 字段）
+  core                      通用业务逻辑与 Excel 解析
+```
+
+### 模块依赖
+
+```
+apps/web
+  ├── ops-console ──┬── company-sku ── shared
+  │                 └── platform-mapping ──┘
+  └── core
+```
+
+三个业务包通过 `@shein-erp/shared` 的 `ErpProvider` 共享状态（公司 SKU、平台映射、维护记录、Toast 等），并相互引用：
+
+- **运营台** 读取公司 SKU / 平台映射统计，跳转至对应模块
+- **平台映射** 引用 `company-sku` 的 `resolveCompanySkuState` 校验关联 SKU 状态
+- **公司 SKU** 列表展示各 SKU 的映射数量
+
 ## 本地启动
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 打开 `http://localhost:3000`。默认使用浏览器本地存储，可直接体验全部业务流程。
@@ -18,11 +45,11 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Prisma 数据模型位于 `prisma/schema.prisma`。接入服务端数据库时执行：
+Prisma 数据模型位于 `apps/web/prisma/schema.prisma`。接入服务端数据库时执行：
 
 ```bash
-npm run db:generate
-npm run db:migrate
+pnpm db:generate
+pnpm db:migrate
 ```
 
 ## Excel 导入
