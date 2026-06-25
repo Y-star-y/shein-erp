@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   availableStock,
-  createSkuDraftFromOrder,
   inventoryForOrder,
   matchInventorySnapshot,
   matchOrder,
@@ -40,13 +39,6 @@ describe("ERP business rules", () => {
 
   it("subtracts pending orders from available stock", () => {
     expect(availableStock({ ...demoState, orders: [order] }, demoState.skus[0].code)).toBe(-1);
-  });
-
-  it("creates a pending sku draft from a new order seller sku", () => {
-    const draft = createSkuDraftFromOrder({ ...order, sellerSku: "NEW-SELLER-SKU", productName: "新商品" });
-    expect(draft.sellerSku).toBe("NEW-SELLER-SKU");
-    expect(draft.code).toBe("NEW-SELLER-SKU");
-    expect(draft.confirmStatus).toBe("待确认");
   });
 
   it("matches inventory snapshots by seller sku first", () => {

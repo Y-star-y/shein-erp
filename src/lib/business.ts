@@ -50,35 +50,6 @@ export function inventoryForOrder(state: ErpState, order: Pick<Order, "sellerSku
   );
 }
 
-export function createSkuDraftFromOrder(order: Omit<Order, "skuCode" | "status">): Sku {
-  const sellerSku = order.sellerSku.trim();
-  return {
-    id: `sku-draft-${sellerSku || Date.now()}`,
-    code: sellerSku || `SKU-${Date.now()}`,
-    fnsku: "",
-    sellerSku,
-    platformSku: "",
-    platformSkc: "",
-    platformSpu: "",
-    name: order.productName || sellerSku || "待补充商品",
-    spec: order.spec || "",
-    sellerCode: "",
-    shippingName: order.productName || sellerSku,
-    shippingMethod: "",
-    imageUrl: "",
-    supplier: "",
-    purchaseLink: "",
-    purchasePrice: 0,
-    leadTimeDays: 15,
-    safetyDays: 7,
-    safetyStock: 0,
-    reorderPoint: 0,
-    targetStock: 0,
-    confirmStatus: "待确认",
-    owner: "",
-  };
-}
-
 export function suggestInventoryReplenishment(snapshot: InventorySnapshot) {
   const dailySales = snapshot.sales30d > 0 ? snapshot.sales30d / 30 : 0;
   const targetStock = Math.ceil(dailySales * 7);
