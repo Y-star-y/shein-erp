@@ -7,11 +7,11 @@ import {
   normalizeCompanySku,
   useCompanySkuActions,
 } from "@shein-erp/company-sku";
-import { normalizeMapping } from "@shein-erp/platform-mapping";
 import { OpsConsolePage } from "@shein-erp/ops-console";
 import {
   MappingForm,
   PlatformMappingPage,
+  normalizeMapping,
   usePlatformMappingActions,
 } from "@shein-erp/platform-mapping";
 import {
@@ -28,13 +28,13 @@ import { useMemo } from "react";
 const menuSections = [
   {
     title: "运营工作台",
-    items: [{ key: "dashboard" as PageKey, title: "运营台", icon: Layers3 }],
+    items: [{ key: "dashboard" as PageKey, title: "首页", icon: Layers3 }],
   },
   {
-    title: "SKU 管理",
+    title: "商品资料",
     items: [
-      { key: "companySku" as PageKey, title: "公司SKU", icon: Package },
-      { key: "platformMappings" as PageKey, title: "平台映射", icon: Tag },
+      { key: "companySku" as PageKey, title: "内部商品", icon: Package },
+      { key: "platformMappings" as PageKey, title: "SHEIN映射", icon: Tag },
     ],
   },
 ];
@@ -60,7 +60,7 @@ function ErpShell() {
   const mappingActions = usePlatformMappingActions();
 
   const activeTitle = useMemo(
-    () => menuSections.flatMap((section) => section.items).find((item) => item.key === page)?.title || "运营台",
+    () => menuSections.flatMap((section) => section.items).find((item) => item.key === page)?.title || "首页",
     [page],
   );
 
@@ -68,10 +68,10 @@ function ErpShell() {
     <div className="erp-shell">
       <aside className="erp-sidebar">
         <div className="brand-card">
-          <div className="brand-logo">冰</div>
+          <div className="brand-logo">ERP</div>
           <div>
             <strong>冰域 ERP</strong>
-            <span>SKU 基础档案</span>
+            <span>商品映射基础资料</span>
           </div>
         </div>
         <nav className="menu-sections" aria-label="冰域 ERP 菜单">
@@ -103,7 +103,7 @@ function ErpShell() {
               <label className="search-shell">
                 <Search size={16} />
                 <input
-                  placeholder={page === "platformMappings" ? "搜索平台 SKU、公司 SKU 或备注" : "搜索公司 SKU、商品名或供应商"}
+                  placeholder={page === "platformMappings" ? "搜索 SHEIN SKC、店铺、内部商品编码" : "搜索内部商品编码、商品名、供应商"}
                   value={page === "platformMappings" ? mappingQuery : companyQuery}
                   onChange={(event) => (page === "platformMappings" ? setMappingQuery(event.target.value) : setCompanyQuery(event.target.value))}
                 />
@@ -113,7 +113,7 @@ function ErpShell() {
                 onClick={() => (page === "platformMappings" ? mappingActions.openMappingModal("create") : companyActions.openCompanyModal("create"))}
               >
                 <Plus size={16} />
-                {page === "platformMappings" ? "新增映射" : "新增公司 SKU"}
+                {page === "platformMappings" ? "新增映射" : "新增内部商品"}
               </button>
             </div>
           )}
@@ -146,7 +146,7 @@ function ErpShell() {
       </main>
 
       {modal?.type === "company" && (
-        <AppModal title={modal.mode === "create" ? "新增公司 SKU" : "编辑公司 SKU"} onClose={() => setModal(null)}>
+        <AppModal title={modal.mode === "create" ? "新增内部商品" : "编辑内部商品"} onClose={() => setModal(null)}>
           <CompanySkuForm
             errors={modal.errors}
             mode={modal.mode}
@@ -157,7 +157,7 @@ function ErpShell() {
         </AppModal>
       )}
       {modal?.type === "mapping" && (
-        <AppModal title={modal.mode === "create" ? "新增平台 SKU 映射" : "编辑平台 SKU 映射"} onClose={() => setModal(null)}>
+        <AppModal title={modal.mode === "create" ? "新增 SHEIN SKC 映射" : "编辑 SHEIN SKC 映射"} onClose={() => setModal(null)}>
           <MappingForm
             activeCompanySkus={activeCompanySkus}
             companySkus={companySkus}

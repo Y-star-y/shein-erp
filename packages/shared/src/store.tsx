@@ -2,14 +2,13 @@
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
-  COMPANY_SKU_STORAGE_KEY,
   MAINTENANCE_EVENT_STORAGE_KEY,
-  PLATFORM_MAPPING_STORAGE_KEY,
 } from "./constants";
 import type {
   CompanySku,
   ConfirmState,
   MaintenanceEvent,
+  MasterDataResponse,
   ModalState,
   PageKey,
   PlatformSkuMapping,
@@ -77,32 +76,39 @@ export function ErpProvider({
   const incompleteSkus = useMemo(() => companySkus.filter(isSkuIncomplete), [companySkus, isSkuIncomplete]);
 
   useEffect(() => {
-    try {
-      const storedSkus = localStorage.getItem(COMPANY_SKU_STORAGE_KEY);
-      const storedMappings = localStorage.getItem(PLATFORM_MAPPING_STORAGE_KEY);
-      const storedEvents = localStorage.getItem(MAINTENANCE_EVENT_STORAGE_KEY);
+    let cancelled = false;
 
-      if (storedSkus) setCompanySkus((JSON.parse(storedSkus) as CompanySku[]).map(normalizeCompanySku));
-      if (storedMappings) setMappings((JSON.parse(storedMappings) as PlatformSkuMapping[]).map(normalizeMapping));
-      if (storedEvents) setEvents(JSON.parse(storedEvents) as MaintenanceEvent[]);
-    } catch {
-      localStorage.removeItem(COMPANY_SKU_STORAGE_KEY);
-      localStorage.removeItem(PLATFORM_MAPPING_STORAGE_KEY);
-      localStorage.removeItem(MAINTENANCE_EVENT_STORAGE_KEY);
-    } finally {
-      setIsStorageReady(true);
+    async function loadMasterData() {
+      try {
+        const [masterResponse, storedEvents] = await Promise.all([
+          fetch("/api/master-data", { cache: "no-store" }),
+          Promise.resolve(localStorage.getItem(MAINTENANCE_EVENT_STORAGE_KEY)),
+        ]);
+
+        if (!masterResponse.ok) throw new Error("Failed to load master data");
+
+        const masterData = (await masterResponse.json()) as MasterDataResponse;
+        if (cancelled) return;
+
+        setCompanySkus(masterData.companySkus.map(normalizeCompanySku));
+        setMappings(masterData.mappings.map(normalizeMapping));
+        if (storedEvents) setEvents(JSON.parse(storedEvents) as MaintenanceEvent[]);
+      } catch {
+        if (!cancelled) {
+          setCompanySkus([]);
+          setMappings([]);
+          localStorage.removeItem(MAINTENANCE_EVENT_STORAGE_KEY);
+        }
+      } finally {
+        if (!cancelled) setIsStorageReady(true);
+      }
     }
+
+    loadMasterData();
+    return () => {
+      cancelled = true;
+    };
   }, [normalizeCompanySku, normalizeMapping]);
-
-  useEffect(() => {
-    if (!isStorageReady) return;
-    localStorage.setItem(COMPANY_SKU_STORAGE_KEY, JSON.stringify(companySkus));
-  }, [companySkus, isStorageReady]);
-
-  useEffect(() => {
-    if (!isStorageReady) return;
-    localStorage.setItem(PLATFORM_MAPPING_STORAGE_KEY, JSON.stringify(mappings));
-  }, [isStorageReady, mappings]);
 
   useEffect(() => {
     if (!isStorageReady) return;

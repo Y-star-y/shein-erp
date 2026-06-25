@@ -8,7 +8,7 @@ export function PageHeader({ action, description, title }: { action: ReactNode; 
   return (
     <section className="page-header">
       <div>
-        <span className="eyebrow">SKU 管理</span>
+        <span className="eyebrow">商品资料管理</span>
         <h2>{title}</h2>
         <p>{description}</p>
       </div>

@@ -5,7 +5,21 @@ export function nowText() {
 }
 
 export function statusText(status: CompanySkuStatus | PlatformSkuMappingStatus) {
-  return status === "active" ? "启用" : "停用";
+  const map: Record<CompanySkuStatus | PlatformSkuMappingStatus, string> = {
+    active: "启用",
+    inactive: "停用",
+    pending: "待绑定",
+    conflict: "冲突",
+  };
+
+  return map[status] || status;
+}
+
+export function statusTone(status: CompanySkuStatus | PlatformSkuMappingStatus) {
+  if (status === "active") return "success";
+  if (status === "pending") return "warning";
+  if (status === "conflict") return "danger";
+  return "neutral";
 }
 
 export function platformText(platform: string) {

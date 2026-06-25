@@ -1,14 +1,20 @@
 import type { CompanySku, PlatformSkuMapping } from "@shein-erp/shared";
 import { nowText } from "@shein-erp/shared";
 
-export function createPlatformMapping(defaultSkc = ""): PlatformSkuMapping {
+type LegacyMapping = Partial<PlatformSkuMapping> & {
+  companySku?: string;
+};
+
+export function createPlatformMapping(defaultInternalSku = ""): PlatformSkuMapping {
   const now = nowText();
 
   return {
     id: `platform-mapping-${Date.now()}`,
     platform: "SHEIN",
+    storeName: "",
+    internalSku: defaultInternalSku,
+    platformSkc: "",
     platformSku: "",
-    platformSkc: defaultSkc,
     sheinProductId: "",
     platformSpu: "",
     sellerSku: "",
@@ -20,13 +26,14 @@ export function createPlatformMapping(defaultSkc = ""): PlatformSkuMapping {
   };
 }
 
-export function normalizeMapping(item: PlatformSkuMapping): PlatformSkuMapping {
+export function normalizeMapping(item: LegacyMapping): PlatformSkuMapping {
   const now = nowText();
 
   return {
     ...createPlatformMapping(),
     ...item,
     platform: item.platform || "SHEIN",
+    internalSku: item.internalSku || item.companySku || "",
     status: item.status || "active",
     createdAt: item.createdAt || now,
     updatedAt: item.updatedAt || item.createdAt || now,
@@ -41,21 +48,40 @@ export function validateMapping(
 ) {
   const errors: Record<string, string> = {};
   const platform = value.platform.trim() || "SHEIN";
-  const platformSku = value.platformSku.trim();
+  const storeName = value.storeName.trim();
+  const internalSku = value.internalSku.trim();
   const platformSkc = value.platformSkc.trim();
-  const targetSku = companySkus.find((item) => item.platformSkc === platformSkc);
+  const targetSku = companySkus.find((item) => item.internalSku === internalSku);
 
   if (!platform) errors.platform = "平台不能为空";
-  if (!platformSku) errors.platformSku = "平台 SKU 不能为空";
-  if (!platformSkc) errors.platformSkc = "必须选择公司 SKU";
-  if (platformSkc && !targetSku) errors.platformSkc = "关联的公司 SKU 不存在";
-  if (targetSku?.status === "inactive") errors.platformSkc = "停用公司 SKU 不能新增映射";
+  if (!storeName) errors.storeName = "店铺不能为空";
+  if (!platformSkc) errors.platformSkc = "SHEIN SKC 不能为空";
+  if (!internalSku) errors.internalSku = "必须选择内部商品";
+  if (internalSku && !targetSku) errors.internalSku = "内部商品不存在";
+  if (targetSku?.status === "inactive") errors.internalSku = "停用的内部商品不能新增映射";
+
+  if (
+    platformSkc &&
+    mappings.some((item) => item.platformSkc.trim() === platformSkc && (mode === "create" || item.id !== value.id))
+  ) {
+    errors.platformSkc = "该 SHEIN SKC 已存在映射";
+  }
+
   if (
     platform &&
-    platformSku &&
-    mappings.some((item) => item.platform === platform && item.platformSku.trim() === platformSku && (mode === "create" || item.id !== value.id))
+    storeName &&
+    internalSku &&
+    value.status === "active" &&
+    mappings.some(
+      (item) =>
+        item.platform === platform &&
+        item.storeName.trim() === storeName &&
+        item.internalSku.trim() === internalSku &&
+        item.status === "active" &&
+        (mode === "create" || item.id !== value.id),
+    )
   ) {
-    errors.platformSku = "该平台 SKU 已存在映射";
+    errors.internalSku = "该店铺已经有这个内部商品的启用映射";
   }
 
   return errors;

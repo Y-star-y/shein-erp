@@ -7,10 +7,11 @@ import {
   PageHeader,
   StatusTag,
   includesQuery,
+  mappingStatusOptions,
   platformOptions,
   platformText,
-  statusOptions,
   statusText,
+  statusTone,
   useErpStore,
   type PlatformSkuMapping,
   type PlatformSkuMappingStatus,
@@ -48,14 +49,25 @@ export function PlatformMappingPage({
         platformMatched &&
         statusMatched &&
         includesQuery(
-          [item.platform, item.platformSku, item.platformSkc, item.sellerSku, item.sheinProductId, item.platformSpu, item.sheinProductName, item.remark],
+          [
+            item.platform,
+            item.storeName,
+            item.internalSku,
+            item.platformSkc,
+            item.platformSku,
+            item.sellerSku,
+            item.sheinProductId,
+            item.platformSpu,
+            item.sheinProductName,
+            item.remark,
+          ],
           mappingQuery,
         )
       );
     });
   }, [mappingPlatformFilter, mappingQuery, mappingStatusFilter, mappings]);
 
-  const tableStyle = { "--table-min-width": "1260px" } as CSSProperties;
+  const tableStyle = { "--table-min-width": "1580px" } as CSSProperties;
 
   return (
     <div className="page-stack">
@@ -66,27 +78,31 @@ export function PlatformMappingPage({
             新增映射
           </button>
         }
-        description="维护 SHEIN 平台 SKU、seller SKU、商品 ID 和公司 SKU 的绑定关系。"
-        title="平台 SKU 映射"
+        description="把每个店铺从 SHEIN 返回的 SKC 绑定到 ERP 内部商品。库存、采购、借货按内部商品走，订单导入按 SHEIN SKC 匹配。"
+        title="SHEIN SKC 映射"
       />
 
       <section className="table-panel">
         <div className="table-toolbar">
           <label className="table-search">
             <Search size={15} />
-            <input placeholder="搜索平台 SKU、公司 SKU、seller SKU 或商品名" value={mappingQuery} onChange={(event) => setMappingQuery(event.target.value)} />
+            <input
+              placeholder="搜索店铺、SHEIN SKC、内部商品编码、卖家SKU、SPU、商品名"
+              value={mappingQuery}
+              onChange={(event) => setMappingQuery(event.target.value)}
+            />
           </label>
           <AppSelect
             onChange={setMappingPlatformFilter}
             options={[{ label: "全部平台", value: "all" }, ...platformOptions]}
             value={mappingPlatformFilter}
-            width={128}
+            width={140}
           />
           <AppSelect
             onChange={setMappingStatusFilter}
-            options={[{ label: "全部状态", value: "all" }, ...statusOptions]}
+            options={[{ label: "全部状态", value: "all" }, ...mappingStatusOptions]}
             value={mappingStatusFilter}
-            width={128}
+            width={160}
           />
           <span className="count-pill">{filteredMappings.length}/{mappings.length}</span>
         </div>
@@ -94,7 +110,7 @@ export function PlatformMappingPage({
           <table className="data-table" style={tableStyle}>
             <thead>
               <tr>
-                {["平台", "平台SKU", "公司SKU", "SKU状态", "SHEIN商品ID", "平台SPU", "seller SKU", "平台商品名", "映射状态", "备注", "更新时间", "操作"].map((column) => (
+                {["平台", "店铺", "SHEIN SKC", "内部商品编码", "商品状态", "商品ID", "SPU", "平台SKU", "卖家SKU", "SHEIN商品名", "映射状态", "更新时间", "操作"].map((column) => (
                   <th key={column}>{column}</th>
                 ))}
               </tr>
@@ -102,19 +118,20 @@ export function PlatformMappingPage({
             <tbody>
               {filteredMappings.length ? (
                 filteredMappings.map((item) => {
-                  const skuState = resolveCompanySkuState(item.platformSkc, companySkus);
+                  const skuState = resolveCompanySkuState(item.internalSku, companySkus);
                   return (
                     <tr key={item.id}>
                       <td>{platformText(item.platform)}</td>
-                      <td title={item.platformSku}><strong>{item.platformSku}</strong></td>
-                      <td title={item.platformSkc}>{item.platformSkc}</td>
+                      <td title={item.storeName}>{item.storeName}</td>
+                      <td title={item.platformSkc}><strong>{item.platformSkc}</strong></td>
+                      <td title={item.internalSku}>{item.internalSku || "-"}</td>
                       <td><StatusTag value={skuState.label} tone={skuState.tone} /></td>
                       <td title={item.sheinProductId}>{item.sheinProductId || "-"}</td>
                       <td title={item.platformSpu}>{item.platformSpu || "-"}</td>
+                      <td title={item.platformSku}>{item.platformSku || "-"}</td>
                       <td title={item.sellerSku}>{item.sellerSku || "-"}</td>
                       <td title={item.sheinProductName}>{item.sheinProductName || "-"}</td>
-                      <td><StatusTag value={statusText(item.status)} tone={item.status === "active" ? "success" : "neutral"} /></td>
-                      <td title={item.remark}>{item.remark || "-"}</td>
+                      <td><StatusTag value={statusText(item.status)} tone={statusTone(item.status)} /></td>
                       <td>{item.updatedAt}</td>
                       <td>
                         <div className="row-actions">
@@ -129,7 +146,7 @@ export function PlatformMappingPage({
                   );
                 })
               ) : (
-                <EmptyTableRow colSpan={12} title="暂无平台映射" text="点击右上角新增平台 SKU 映射。" />
+                <EmptyTableRow colSpan={13} title="暂无 SHEIN 映射" text="店铺获得 SHEIN SKC 后，在这里绑定到内部商品。" />
               )}
             </tbody>
           </table>

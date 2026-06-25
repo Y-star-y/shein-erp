@@ -2,27 +2,31 @@ export type CompanySkuStatus = "active" | "inactive";
 
 export type CompanySku = {
   id: string;
-  platformSkc: string;
+  internalSku: string;
+  productGroupName: string;
   productNameCn: string;
   status: CompanySkuStatus;
   specification: string;
   color: string;
+  size: string;
   model: string;
   imageUrl: string;
   supplierUrl: string;
   defaultWarningQuantity: string;
-  source: "manual";
+  source: "manual" | "shein_order";
   createdAt: string;
   updatedAt: string;
 };
 
-export type PlatformSkuMappingStatus = "active" | "inactive";
+export type PlatformSkuMappingStatus = "pending" | "active" | "inactive" | "conflict";
 
 export type PlatformSkuMapping = {
   id: string;
   platform: string;
-  platformSku: string;
+  storeName: string;
+  internalSku: string;
   platformSkc: string;
+  platformSku: string;
   sheinProductId: string;
   platformSpu: string;
   sellerSku: string;
@@ -59,6 +63,11 @@ export type ConfirmState = {
   tone?: "danger" | "primary";
   onConfirm: () => void;
 } | null;
+
+export type MasterDataResponse = {
+  companySkus: CompanySku[];
+  mappings: PlatformSkuMapping[];
+};
 
 export type SelectOption = {
   label: string;
