@@ -1,5 +1,3 @@
-import type { CompanySku, PlatformSkuMapping } from "./sku";
-
 export type CompanySkuStatus = "active" | "inactive";
 
 export type CompanySku = {

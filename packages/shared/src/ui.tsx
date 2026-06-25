@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertCircle, Check, ChevronDown, Package, X } from "lucide-react";
-import { type FormEvent, type ReactNode, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import type { ConfirmState, SelectOption, Toast } from "./types";
 
 export function PageHeader({ action, description, title }: { action: ReactNode; description: string; title: string }) {
@@ -90,22 +90,55 @@ export function AppSelect({
   width?: number;
 }) {
   const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
   const selected = options.find((option) => option.value === value);
 
+  useEffect(() => {
+    if (!open) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
+
   return (
-    <div className={`select-field ${error ? "has-error" : ""}`} style={width ? { width } : undefined}>
+    <div className={`select-field ${error ? "has-error" : ""}`} ref={rootRef} style={width ? { width } : undefined}>
       {label && <span>{label}</span>}
-      <button type="button" className={open ? "open" : ""} onClick={() => setOpen((current) => !current)}>
+      <button
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        type="button"
+        className={open ? "open" : ""}
+        onClick={() => setOpen((current) => !current)}
+      >
         <strong>{selected?.label || placeholder}</strong>
         <ChevronDown size={15} />
       </button>
       {open && (
-        <div className="select-popover">
+        <div className="select-popover" role="listbox">
           {options.map((option) => (
             <button
+              aria-selected={option.value === value}
               className={option.value === value ? "selected" : ""}
               disabled={option.disabled}
               key={option.value}
+              role="option"
               type="button"
               onClick={() => {
                 if (option.disabled) return;
