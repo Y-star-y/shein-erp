@@ -1,4 +1,4 @@
-import type { InternalProduct, SheinProductMapping, Store } from "@prisma/client";
+import type { InternalProduct, ProductGroup, SheinProductMapping, Store } from "@prisma/client";
 import type { CompanySku, PlatformSkuMapping } from "@shein-erp/shared";
 
 export type MappingWithStore = SheinProductMapping & {
@@ -6,15 +6,44 @@ export type MappingWithStore = SheinProductMapping & {
   internalProduct?: InternalProduct | null;
 };
 
+export type InternalProductWithGroup = InternalProduct & {
+  productGroup?: ProductGroup | null;
+};
+
 function text(value: unknown) {
   return String(value ?? "");
 }
 
-export function toCompanySku(product: InternalProduct): CompanySku {
+export function productGroupCode(name: string) {
+  let hash = 5381;
+  for (const char of name.trim()) {
+    hash = (hash * 33) ^ char.charCodeAt(0);
+  }
+
+  return `group-${(hash >>> 0).toString(36)}`;
+}
+
+export function productGroupRelation(name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) return undefined;
+
+  const groupCode = productGroupCode(trimmed);
+  return {
+    connectOrCreate: {
+      where: { groupCode },
+      create: {
+        groupCode,
+        nameCn: trimmed,
+      },
+    },
+  };
+}
+
+export function toCompanySku(product: InternalProductWithGroup): CompanySku {
   return {
     id: product.id,
     internalSku: product.internalSku,
-    productGroupName: "",
+    productGroupName: text(product.productGroup?.nameCn),
     productNameCn: product.productNameCn,
     status: product.status,
     specification: text(product.specification),

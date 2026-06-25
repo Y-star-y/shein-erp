@@ -2,6 +2,7 @@
 
 import {
   AppSelect,
+  Button,
   FormSection,
   TextField,
   statusOptions,
@@ -75,7 +76,7 @@ export function CompanySkuForm({
       </FormSection>
       <div className="modal-actions">
         <span>{mode === "create" ? "先创建 ERP 内部商品，再绑定各店铺的 SHEIN SKC。" : `创建时间：${value.createdAt}`}</span>
-        <button className="primary-btn" type="submit">保存</button>
+        <Button htmlType="submit" type="primary">保存</Button>
       </div>
     </form>
   );

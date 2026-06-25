@@ -2,7 +2,7 @@
 
 import {
   AppSelect,
-  EmptyTableRow,
+  EmptyBlock,
   PageHeader,
   StatusTag,
   includesQuery,
@@ -12,10 +12,10 @@ import {
   useErpStore,
   type CompanySku,
   type CompanySkuStatus,
-  type PlatformSkuMapping,
 } from "@shein-erp/shared";
-import { Pencil, Plus, Search, Trash2 } from "lucide-react";
-import { type CSSProperties, useMemo } from "react";
+import { Button, Input, Space, Table, Tag } from "antd";
+import { Package, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { useMemo } from "react";
 import { countMappingsForSku } from "./model";
 
 export function CompanySkuPage({
@@ -51,16 +51,52 @@ export function CompanySkuPage({
     });
   }, [companyQuery, companySkus, companyStatusFilter]);
 
-  const tableStyle = { "--table-min-width": "1480px" } as CSSProperties;
+  const columns = useMemo(
+    () => [
+      {
+        title: "内部商品编码",
+        dataIndex: "internalSku",
+        render: (value: string) => <strong title={value}>{value}</strong>,
+      },
+      { title: "商品组/款式", dataIndex: "productGroupName", render: (value: string) => <span title={value}>{value || "-"}</span> },
+      { title: "商品名称", dataIndex: "productNameCn", render: (value: string) => <span title={value}>{value}</span> },
+      { title: "规格", dataIndex: "specification", render: (value: string) => <span title={value}>{value || "-"}</span> },
+      { title: "颜色", dataIndex: "color", render: (value: string) => value || "-" },
+      { title: "尺码", dataIndex: "size", render: (value: string) => value || "-" },
+      { title: "型号", dataIndex: "model", render: (value: string) => value || "-" },
+      { title: "供应商", dataIndex: "supplierUrl", render: (value: string) => <span title={value}>{value || "-"}</span> },
+      { title: "预警", dataIndex: "defaultWarningQuantity", render: (value: string) => value || "-" },
+      {
+        title: "SKC映射数",
+        key: "mappingCount",
+        render: (_: unknown, item: CompanySku) => countMappingsForSku(item.internalSku, mappings),
+      },
+      {
+        title: "状态",
+        dataIndex: "status",
+        render: (value: CompanySkuStatus) => <StatusTag value={statusText(value)} tone={statusTone(value)} />,
+      },
+      { title: "更新时间", dataIndex: "updatedAt" },
+      {
+        title: "操作",
+        key: "actions",
+        fixed: "right" as const,
+        width: 210,
+        render: (_: unknown, item: CompanySku) => (
+          <CompanySkuActions item={item} onDelete={onDelete} onEdit={onEdit} onStatusChange={onStatusChange} />
+        ),
+      },
+    ],
+    [mappings, onDelete, onEdit, onStatusChange],
+  );
 
   return (
     <div className="page-stack">
       <PageHeader
         action={
-          <button className="primary-btn" onClick={onCreate}>
-            <Plus size={16} />
+          <Button icon={<Plus size={16} />} type="primary" onClick={onCreate}>
             新增内部商品
-          </button>
+          </Button>
         }
         description="内部商品是真实可发货的商品，SHEIN SKC 按店铺映射到这里。库存、采购、借货都以内部商品为准。"
         title="内部商品"
@@ -68,92 +104,53 @@ export function CompanySkuPage({
 
       <section className="table-panel">
         <div className="table-toolbar">
-          <label className="table-search">
-            <Search size={15} />
-            <input
-              placeholder="搜索内部商品编码、款式、商品名、尺码、颜色、供应商"
-              value={companyQuery}
-              onChange={(event) => setCompanyQuery(event.target.value)}
-            />
-          </label>
+          <Input
+            className="table-search"
+            prefix={<Search size={15} />}
+            placeholder="搜索内部商品编码、款式、商品名、尺码、颜色、供应商"
+            value={companyQuery}
+            onChange={(event) => setCompanyQuery(event.target.value)}
+          />
           <AppSelect
             onChange={setCompanyStatusFilter}
             options={[{ label: "全部状态", value: "all" }, ...statusOptions]}
             value={companyStatusFilter}
             width={140}
           />
-          <span className="count-pill">{filteredCompanySkus.length}/{companySkus.length}</span>
+          <Tag className="count-pill">{filteredCompanySkus.length}/{companySkus.length}</Tag>
         </div>
-        <div className="table-scroll">
-          <table className="data-table" style={tableStyle}>
-            <thead>
-              <tr>
-                {["内部商品编码", "商品组/款式", "商品名称", "规格", "颜色", "尺码", "型号", "供应商", "预警", "SKC映射数", "状态", "更新时间", "操作"].map((column) => (
-                  <th key={column}>{column}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filteredCompanySkus.length ? (
-                filteredCompanySkus.map((item) => (
-                  <CompanySkuRow
-                    item={item}
-                    key={item.id}
-                    mappings={mappings}
-                    onDelete={onDelete}
-                    onEdit={onEdit}
-                    onStatusChange={onStatusChange}
-                  />
-                ))
-              ) : (
-                <EmptyTableRow colSpan={13} title="暂无内部商品" text="先新增内部商品，再绑定各店铺返回的 SHEIN SKC。" />
-              )}
-            </tbody>
-          </table>
-        </div>
+        <Table
+          columns={columns}
+          dataSource={filteredCompanySkus}
+          locale={{ emptyText: <EmptyBlock icon={<Package size={22} />} title="暂无内部商品" text="先新增内部商品，再绑定各店铺返回的 SHEIN SKC。" /> }}
+          pagination={false}
+          rowKey="id"
+          scroll={{ x: 1480 }}
+          size="middle"
+        />
       </section>
     </div>
   );
 }
 
-function CompanySkuRow({
+function CompanySkuActions({
   item,
-  mappings,
   onDelete,
   onEdit,
   onStatusChange,
 }: {
   item: CompanySku;
-  mappings: PlatformSkuMapping[];
   onDelete: (item: CompanySku) => void;
   onEdit: (item: CompanySku) => void;
   onStatusChange: (item: CompanySku, status: CompanySkuStatus) => void;
 }) {
-  const mappingCount = countMappingsForSku(item.internalSku, mappings);
-
   return (
-    <tr>
-      <td title={item.internalSku}><strong>{item.internalSku}</strong></td>
-      <td title={item.productGroupName}>{item.productGroupName || "-"}</td>
-      <td title={item.productNameCn}>{item.productNameCn}</td>
-      <td title={item.specification}>{item.specification || "-"}</td>
-      <td>{item.color || "-"}</td>
-      <td>{item.size || "-"}</td>
-      <td>{item.model || "-"}</td>
-      <td title={item.supplierUrl}>{item.supplierUrl || "-"}</td>
-      <td>{item.defaultWarningQuantity || "-"}</td>
-      <td>{mappingCount}</td>
-      <td><StatusTag value={statusText(item.status)} tone={statusTone(item.status)} /></td>
-      <td>{item.updatedAt}</td>
-      <td>
-        <div className="row-actions">
-          <button className="icon-text-btn edit" onClick={() => onEdit(item)}><Pencil size={14} />编辑</button>
-          <button className="icon-text-btn" onClick={() => onStatusChange(item, item.status === "active" ? "inactive" : "active")}>
-            {item.status === "active" ? "停用" : "启用"}
-          </button>
-          <button className="icon-text-btn danger" onClick={() => onDelete(item)}><Trash2 size={14} />删除</button>
-        </div>
-      </td>
-    </tr>
+    <Space size={6}>
+      <Button icon={<Pencil size={14} />} size="small" type="link" onClick={() => onEdit(item)}>编辑</Button>
+      <Button size="small" type="link" onClick={() => onStatusChange(item, item.status === "active" ? "inactive" : "active")}>
+        {item.status === "active" ? "停用" : "启用"}
+      </Button>
+      <Button danger icon={<Trash2 size={14} />} size="small" type="link" onClick={() => onDelete(item)}>删除</Button>
+    </Space>
   );
 }

@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   const [products, mappings] = await Promise.all([
-    prisma.internalProduct.findMany({ orderBy: { updatedAt: "desc" } }),
+    prisma.internalProduct.findMany({ include: { productGroup: true }, orderBy: { updatedAt: "desc" } }),
     prisma.sheinProductMapping.findMany({
       include: { store: true, internalProduct: true },
       orderBy: { updatedAt: "desc" },

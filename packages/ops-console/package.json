@@ -12,6 +12,7 @@
     "@shein-erp/shared": "workspace:*"
   },
   "peerDependencies": {
+    "antd": "^6.4.5",
     "lucide-react": "^0.468.0",
     "react": "^19.0.0"
   },

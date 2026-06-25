@@ -2,6 +2,7 @@
 
 import {
   AppSelect,
+  Button,
   FormSection,
   TextField,
   mappingStatusOptions,
@@ -97,7 +98,7 @@ export function MappingForm({
       </FormSection>
       <div className="modal-actions">
         <span>{mode === "create" ? "一个 SHEIN SKC 只能绑定一个内部商品。" : `创建时间：${value.createdAt}`}</span>
-        <button className="primary-btn" type="submit">保存</button>
+        <Button htmlType="submit" type="primary">保存</Button>
       </div>
     </form>
   );

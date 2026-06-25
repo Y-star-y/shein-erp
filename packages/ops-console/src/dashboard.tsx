@@ -8,6 +8,7 @@ import {
   useErpStore,
   type PageKey,
 } from "@shein-erp/shared";
+import { Button, Card, Statistic } from "antd";
 import {
   Activity,
   AlertCircle,
@@ -47,7 +48,7 @@ export function OpsConsolePage({
 
   return (
     <div className="page-stack">
-      <section className="hero-panel">
+      <Card className="hero-panel" variant="borderless">
         <div>
           <span className="eyebrow">运营工作台</span>
           <h2>先把商品映射基础资料打稳</h2>
@@ -56,40 +57,37 @@ export function OpsConsolePage({
           </p>
         </div>
         <div className="hero-actions">
-          <button className="primary-btn" onClick={onCreateCompanySku}>
-            <Plus size={16} />
+          <Button icon={<Plus size={16} />} type="primary" onClick={onCreateCompanySku}>
             新增内部商品
-          </button>
-          <button className="secondary-btn" onClick={onCreateMapping}>
-            <Tag size={16} />
+          </Button>
+          <Button icon={<Tag size={16} />} onClick={onCreateMapping}>
             新增 SHEIN 映射
-          </button>
+          </Button>
         </div>
-      </section>
+      </Card>
 
       <section className="metric-grid">
         {cards.map((card) => (
-          <article className="metric-card" key={card.label}>
+          <Card className="metric-card" key={card.label}>
             <div className={`metric-icon ${card.tone}`}>
               <card.icon size={18} />
             </div>
-            <span>{card.label}</span>
-            <strong>{card.value}</strong>
-          </article>
+            <Statistic title={card.label} value={card.value} />
+          </Card>
         ))}
       </section>
 
       <section className="dashboard-grid">
-        <Panel title="待完善内部商品" count={incompleteSkus.length} action={<button onClick={() => onJump("companySku")}>查看内部商品</button>}>
+        <Panel title="待完善内部商品" count={incompleteSkus.length} action={<Button onClick={() => onJump("companySku")}>查看内部商品</Button>}>
           <div className="mini-list">
             {incompleteSkus.slice(0, 8).map((item) => (
-              <button className="mini-row" key={item.id} onClick={() => onJump("companySku")}>
+              <Button className="mini-row" key={item.id} onClick={() => onJump("companySku")}>
                 <span>
                   <strong>{item.internalSku}</strong>
                   <em>{item.productNameCn}</em>
                 </span>
                 <StatusTag value="待完善" tone="warning" />
-              </button>
+              </Button>
             ))}
             {!incompleteSkus.length && <EmptyBlock icon={<Package size={22} />} title="暂无待完善商品" text="启用商品的建议字段都已经补齐。" />}
           </div>
@@ -110,18 +108,15 @@ export function OpsConsolePage({
       </section>
 
       <section className="shortcut-grid">
-        <button onClick={onCreateCompanySku}>
-          <Package size={18} />
+        <Button icon={<Package size={18} />} onClick={onCreateCompanySku}>
           新增内部商品
-        </button>
-        <button onClick={onCreateMapping}>
-          <Tag size={18} />
+        </Button>
+        <Button icon={<Tag size={18} />} onClick={onCreateMapping}>
           新增 SHEIN 映射
-        </button>
-        <button onClick={() => onJump("platformMappings")}>
-          <RefreshCw size={18} />
+        </Button>
+        <Button icon={<RefreshCw size={18} />} onClick={() => onJump("platformMappings")}>
           查看映射表
-        </button>
+        </Button>
       </section>
     </div>
   );
