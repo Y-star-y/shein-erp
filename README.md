@@ -45,6 +45,12 @@ DATABASE_URL="postgresql://erp:erp@192.168.110.16:5432/shein_db?schema=public"
 
 打开 `http://localhost:3000`。如果 3000 端口被占用，Next.js 会自动切换到其他端口。
 
+`pnpm dev` 会自动执行 `prisma generate` 生成 Prisma Client。若需要单独排查 Prisma Client，可手动运行：
+
+```bash
+pnpm db:generate
+```
+
 ## PostgreSQL 部署
 
 本项目的 Next.js / Prisma 应用读取 `apps/web/.env` 中的 `DATABASE_URL`。`pnpm dev` 本地开发时，请确保数据库名为 `shein_db`，不是旧示例中的 `shein_erp`。
