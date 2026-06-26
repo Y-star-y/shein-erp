@@ -1,12 +1,11 @@
+import { databaseErrorOrFallback } from "@/lib/database-error";
 import { parseWarningQuantity, productGroupRelation, toCompanySku } from "@/lib/master-data";
 import { prisma } from "@/lib/prisma";
 import type { CompanySku } from "@shein-erp/shared";
 import { NextResponse } from "next/server";
 
 function productErrorResponse(error: unknown, fallback: string) {
-  const message = error instanceof Error && error.message.includes("Can't reach database server")
-    ? "数据库连接失败，请检查 PostgreSQL 服务或 DATABASE_URL"
-    : fallback;
+  const message = databaseErrorOrFallback(error, fallback);
 
   return NextResponse.json({ error: message }, { status: 500 });
 }
