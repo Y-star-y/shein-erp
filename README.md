@@ -33,12 +33,30 @@ apps/web
 
 ```bash
 pnpm install
+cp apps/web/.env.example apps/web/.env
 pnpm dev
 ```
 
-打开 `http://localhost:3000`。默认使用浏览器本地存储，可直接体验全部业务流程。
+`apps/web/.env.example` 已默认指向局域网共享 PostgreSQL：
+
+```env
+DATABASE_URL="postgresql://erp:erp@192.168.110.16:5432/shein_db?schema=public"
+```
+
+打开 `http://localhost:3000`。如果 3000 端口被占用，Next.js 会自动切换到其他端口。
 
 ## PostgreSQL 部署
+
+本项目的 Next.js / Prisma 应用读取 `apps/web/.env` 中的 `DATABASE_URL`。`pnpm dev` 本地开发时，请确保数据库名为 `shein_db`，不是旧示例中的 `shein_erp`。
+
+验证当前机器能连接共享 PostgreSQL：
+
+```powershell
+Test-NetConnection 192.168.110.16 -Port 5432
+pnpm --filter @shein-erp/web exec prisma migrate status --schema .\prisma\schema.prisma
+```
+
+Docker Compose 是独立部署方案，会启动自己的 PostgreSQL 容器，不会默认连接局域网共享数据库：
 
 ```bash
 cp .env.example .env
