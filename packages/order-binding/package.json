@@ -1,0 +1,21 @@
+{
+  "name": "@shein-erp/order-binding",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@shein-erp/shared": "workspace:*"
+  },
+  "peerDependencies": {
+    "antd": "^6.4.5",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "typescript": "^5"
+  }
+}

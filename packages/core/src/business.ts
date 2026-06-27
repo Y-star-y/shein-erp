@@ -100,3 +100,67 @@ export function matchOrder(order: Omit<Order, "skuCode" | "status">, skus: Sku[]
 export function orderKey(order: Pick<Order, "orderNo" | "sellerSku">) {
   return `${order.orderNo}|${order.sellerSku}`;
 }
+
+export type OrderLineMappingRef = {
+  sellerSku?: string | null;
+  platformSku?: string | null;
+  status: string;
+  internalProductId?: string | null;
+  id?: string;
+};
+
+function isActiveMapping(item: OrderLineMappingRef) {
+  return item.status === "active" && Boolean(item.internalProductId);
+}
+
+function mappingKey(field: "sellerSku" | "platformSku", value: string) {
+  return value.trim();
+}
+
+export function resolveOrderLineMapping(
+  line: { sellerSku: string; platformSku: string },
+  mappings: OrderLineMappingRef[],
+): { status: "mapped" | "unmapped"; mappingId?: string } {
+  const sellerSku = line.sellerSku.trim();
+  const platformSku = line.platformSku.trim();
+
+  if (sellerSku) {
+    const match = mappings.find(
+      (item) => item.sellerSku?.trim() === sellerSku && isActiveMapping(item),
+    );
+    if (match) {
+      return { status: "mapped", mappingId: match.id };
+    }
+  }
+
+  if (platformSku) {
+    const match = mappings.find(
+      (item) => item.platformSku?.trim() === platformSku && isActiveMapping(item),
+    );
+    if (match) {
+      return { status: "mapped", mappingId: match.id };
+    }
+  }
+
+  return { status: "unmapped" };
+}
+
+export function findActiveMappingBySellerSku(mappings: OrderLineMappingRef[], sellerSku: string) {
+  const key = mappingKey("sellerSku", sellerSku);
+  if (!key) return undefined;
+  return mappings.find((item) => item.sellerSku?.trim() === key && isActiveMapping(item));
+}
+
+export function findActiveMappingByPlatformSku(mappings: OrderLineMappingRef[], platformSku: string) {
+  const key = mappingKey("platformSku", platformSku);
+  if (!key) return undefined;
+  return mappings.find((item) => item.platformSku?.trim() === key && isActiveMapping(item));
+}
+
+export function unmappedGroupKey(sellerSku: string, platformSku: string) {
+  const seller = sellerSku.trim();
+  if (seller) return `seller:${seller}`;
+  const platform = platformSku.trim();
+  if (platform) return `platform:${platform}`;
+  return "";
+}

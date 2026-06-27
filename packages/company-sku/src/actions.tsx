@@ -22,7 +22,7 @@ async function requestJson<T>(url: string, init: RequestInit): Promise<T> {
 }
 
 export function useCompanySkuActions() {
-  const { companySkus, setCompanySkus, setModal, modal, recordEvent, pushToast, setConfirm } = useErpStore();
+  const { companySkus, setCompanySkus, setModal, modal, pushToast, setConfirm } = useErpStore();
 
   const openCompanyModal = useCallback((mode: "create" | "edit", value?: CompanySku) => {
     setModal({ type: "company", mode, value: value ? normalizeCompanySku(value) : createCompanySku(), errors: {} });
@@ -67,14 +67,13 @@ export function useCompanySkuActions() {
         setCompanySkus((current) =>
           modal.mode === "create" ? [persisted, ...current] : current.map((item) => (item.id === persisted.id ? persisted : item)),
         );
-        recordEvent(modal.mode === "create" ? "新增内部商品" : "编辑内部商品", "companySku", persisted.internalSku, persisted.productNameCn);
         pushToast("success", modal.mode === "create" ? "内部商品已新增" : "内部商品已保存");
         setModal(null);
       })
       .catch((error: Error) => {
         pushToast("error", error.message);
       });
-  }, [companySkus, modal, pushToast, recordEvent, setCompanySkus, setModal]);
+  }, [companySkus, modal, pushToast, setCompanySkus, setModal]);
 
   const requestCompanyStatusChange = useCallback((item: CompanySku, status: CompanySkuStatus) => {
     const action = status === "active" ? "启用" : "停用";
@@ -90,14 +89,13 @@ export function useCompanySkuActions() {
         })
           .then((persisted) => {
             setCompanySkus((current) => current.map((sku) => (sku.id === item.id ? persisted : sku)));
-            recordEvent(`${action}内部商品`, "companySku", item.internalSku, item.productNameCn);
             pushToast("success", `已${action}内部商品`);
             setConfirm(null);
           })
           .catch((error: Error) => pushToast("error", error.message));
       },
     });
-  }, [pushToast, recordEvent, setCompanySkus, setConfirm]);
+  }, [pushToast, setCompanySkus, setConfirm]);
 
   const requestCompanyDelete = useCallback((item: CompanySku) => {
     setConfirm({
@@ -110,14 +108,13 @@ export function useCompanySkuActions() {
           .then((response) => {
             if (!response.ok) throw new Error("删除失败");
             setCompanySkus((current) => current.filter((sku) => sku.id !== item.id));
-            recordEvent("删除内部商品", "companySku", item.internalSku, item.productNameCn);
             pushToast("success", "内部商品已删除");
             setConfirm(null);
           })
           .catch((error: Error) => pushToast("error", error.message));
       },
     });
-  }, [pushToast, recordEvent, setCompanySkus, setConfirm]);
+  }, [pushToast, setCompanySkus, setConfirm]);
 
   return {
     openCompanyModal,

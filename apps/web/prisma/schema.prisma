@@ -9,9 +9,23 @@ datasource db {
 
 enum Role {
   ADMIN
-  OPERATOR
-  WAREHOUSE
-  PURCHASER
+  OPERATIONS
+  LOGISTICS
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum AppModule {
+  productManagement
+  storeManagement
+  inventoryManagement
+  orderManagement
+  platformMappings
+  warehouseManagement
+  userManagement
 }
 
 enum OrderStatus {
@@ -55,13 +69,54 @@ enum SheinMappingStatus {
   conflict
 }
 
+enum OrderLineMappingStatus {
+  mapped
+  unmapped
+}
+
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  role      Role
-  createdAt DateTime @default(now())
-  audits    AuditLog[]
+  id            String      @id @default(cuid())
+  name          String
+  email         String      @unique
+  gender        Gender?
+  idNumber      String?     @unique
+  phone         String?
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  role          Role
+  active        Boolean     @default(true)
+  mustChangePassword Boolean @default(false)
+  failedLoginAttempts Int    @default(0)
+  loginFailureWindowStart DateTime?
+  lockedUntil   DateTime?
+  sessionVersion Int       @default(0)
+  permissions   AppModule[] @default([])
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  accounts      Account[]
+  audits        AuditLog[]
+  ownedStores   Store[]
+  importJobs    ImportJob[]
+  passwordResetTokens PasswordResetToken[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
 }
 
 model Warehouse {
@@ -77,13 +132,18 @@ model Warehouse {
 
 model Store {
   id        String   @id @default(cuid())
-  name      String   @unique
+  name      String
   platform  String   @default("SHEIN")
   active    Boolean  @default(true)
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   sheinMappings SheinProductMapping[]
+  orders        Order[]
+
+  @@unique([ownerId, name])
 }
 
 model ProductGroup {
@@ -141,11 +201,11 @@ model SheinProductMapping {
   platform         String   @default("SHEIN")
   storeId          String
   internalProductId String?
-  platformSkc      String   @unique
-  platformSku      String?
+  platformSkc      String?
+  platformSku      String?  @unique
   platformSpu      String?
   sheinProductId   String?
-  sellerSku        String?
+  sellerSku        String?  @unique
   sheinProductName String?
   status           SheinMappingStatus @default(active)
   remark           String?
@@ -154,6 +214,7 @@ model SheinProductMapping {
 
   store           Store @relation(fields: [storeId], references: [id])
   internalProduct InternalProduct? @relation(fields: [internalProductId], references: [id])
+  orderLines      OrderLine[]
 
   @@index([storeId])
   @@index([internalProductId])
@@ -190,10 +251,14 @@ model Sku {
 model ImportJob {
   id          String @id @default(cuid())
   filename    String
+  type        String @default("shein_order")
   totalRows   Int
   successRows Int
   errorRows   Int
+  createdById String?
   createdAt   DateTime @default(now())
+  createdBy   User? @relation(fields: [createdById], references: [id])
+  orders      Order[]
 }
 
 model Order {
@@ -205,23 +270,39 @@ model Order {
   country        String?
   currency       String?
   warehouseId    String?
+  storeId        String?
+  importJobId    String?
   status         OrderStatus @default(PENDING)
+  store          Store? @relation(fields: [storeId], references: [id])
+  importJob      ImportJob? @relation(fields: [importJobId], references: [id])
   lines          OrderLine[]
+
+  @@index([storeId])
+  @@index([importJobId])
 }
 
 model OrderLine {
-  id          String @id @default(cuid())
-  orderId     String
-  skuId       String?
-  sellerSku   String
-  platformSku String?
-  productName String
-  spec        String?
-  quantity    Int @default(1)
-  price       Decimal? @db.Decimal(12, 2)
-  order       Order @relation(fields: [orderId], references: [id])
-  sku         Sku? @relation(fields: [skuId], references: [id])
+  id              String @id @default(cuid())
+  orderId         String
+  skuId           String?
+  sellerSku       String
+  platformSku     String?
+  platformSkc     String?
+  platformSpu     String?
+  productName     String
+  spec            String?
+  quantity        Int @default(1)
+  price           Decimal? @db.Decimal(12, 2)
+  mappingStatus   OrderLineMappingStatus @default(unmapped)
+  sheinMappingId  String?
+  order           Order @relation(fields: [orderId], references: [id])
+  sku             Sku? @relation(fields: [skuId], references: [id])
+  sheinMapping    SheinProductMapping? @relation(fields: [sheinMappingId], references: [id])
   @@unique([orderId, sellerSku])
+  @@index([sellerSku, mappingStatus])
+  @@index([platformSku, mappingStatus])
+  @@index([platformSkc])
+  @@index([sheinMappingId])
 }
 
 model Shipment {
@@ -321,13 +402,41 @@ model ReceiptLine {
   receipt     Receipt @relation(fields: [receiptId], references: [id])
 }
 
+enum AuditSeverity {
+  notice
+  info
+  warn
+  critical
+}
+
 model AuditLog {
-  id        String @id @default(cuid())
+  id        String        @id @default(cuid())
   userId    String?
   action    String
   entity    String
   entityId  String
+  severity  AuditSeverity @default(info)
   detail    Json?
+  createdAt DateTime      @default(now())
+  user      User?         @relation(fields: [userId], references: [id])
+
+  @@index([severity, createdAt])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
   createdAt DateTime @default(now())
-  user      User? @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model LoginCaptcha {
+  id        String   @id @default(cuid())
+  codeHash  String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }

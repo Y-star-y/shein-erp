@@ -29,6 +29,14 @@ body {
   background: var(--bg);
 }
 
+.erp-shell-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: var(--bg);
+}
+
 .erp-sidebar.ant-layout-sider {
   min-height: 100vh;
   padding: 16px 10px;
@@ -453,4 +461,468 @@ body {
   .form-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at top left, rgba(22, 93, 255, 0.12), transparent 40%),
+    radial-gradient(circle at bottom right, rgba(0, 168, 112, 0.1), transparent 35%),
+    var(--bg);
+}
+
+.login-card {
+  width: min(420px, 100%);
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: 8px;
+}
+
+.user-name {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.form-error {
+  margin: 0 0 12px;
+  color: #f53f3f;
+  font-size: 13px;
+}
+
+.profile-id-number {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  letter-spacing: 0.04em;
+}
+
+.profile-editable-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 24px;
+  max-width: 100%;
+}
+
+.profile-editable-value--editing {
+  width: 100%;
+}
+
+.profile-editable-input {
+  flex: 1;
+  min-width: 0;
+  max-width: 320px;
+}
+
+.profile-editable-value__text {
+  color: var(--text, #1d2129);
+}
+
+.profile-edit-link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--primary, #165dff);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  opacity: 0;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+
+.profile-edit-link--visible {
+  opacity: 1;
+}
+
+.profile-edit-link--muted {
+  color: var(--muted, #86909c);
+}
+
+.profile-edit-link--muted:hover:not(:disabled) {
+  color: var(--text, #1d2129);
+}
+
+.profile-editable-value:hover .profile-edit-link,
+.profile-edit-link:focus-visible {
+  opacity: 1;
+}
+
+.profile-edit-link:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.profile-edit-link:disabled {
+  color: var(--muted, #86909c);
+  cursor: not-allowed;
+}
+
+.store-owner-collapse {
+  background: transparent;
+}
+
+.store-owner-collapse .ant-collapse-item {
+  margin-bottom: 10px;
+  border: 1px solid var(--line, #e5e6eb) !important;
+  border-radius: 10px !important;
+  overflow: hidden;
+  background: #fff;
+}
+
+.store-owner-collapse .ant-collapse-header {
+  align-items: center !important;
+  padding: 12px 16px !important;
+}
+
+.store-owner-collapse-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.store-owner-name {
+  font-weight: 600;
+  color: var(--text, #1d2129);
+}
+
+.store-owner-email {
+  color: var(--muted, #86909c);
+  font-size: 13px;
+}
+
+.empty-hint {
+  margin: 0;
+  padding: 24px 0;
+  text-align: center;
+  color: var(--muted, #86909c);
+}
+
+/* Audit log feed */
+.audit-log-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.audit-log-search {
+  max-width: 360px;
+}
+
+.audit-log-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.audit-log-filter {
+  padding: 4px 14px;
+  border: 1px solid var(--line, #e5e6eb);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--text, #1d2129);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.audit-log-filter:hover {
+  border-color: #c9cdd4;
+}
+
+.audit-log-filter.is-active {
+  border-color: var(--primary, #1677ff);
+  color: var(--primary, #1677ff);
+  background: #f0f7ff;
+}
+
+.audit-log-empty {
+  padding: 32px 0;
+}
+
+.audit-log-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.audit-log-group__label {
+  margin-bottom: 10px;
+  padding-left: 2px;
+  color: var(--muted, #86909c);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.audit-log-group__items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.audit-log-item {
+  padding: 14px 16px 14px 18px;
+  border: 1px solid;
+  border-left-width: 4px;
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(29, 33, 41, 0.04);
+}
+
+.audit-log-item__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.audit-log-item__tag {
+  margin: 0;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.audit-log-item__action {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text, #1d2129);
+}
+
+.audit-log-item__time {
+  flex-shrink: 0;
+  color: var(--muted, #86909c);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.audit-log-item__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.audit-log-item__actor {
+  font-weight: 600;
+  color: var(--text, #1d2129);
+}
+
+.audit-log-item__email {
+  color: var(--muted, #86909c);
+}
+
+.audit-log-item__email::before {
+  content: "·";
+  margin-right: 8px;
+  color: #c9cdd4;
+}
+
+.audit-log-item__detail {
+  margin: 8px 0 0;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(0, 0, 0, 0.06);
+  color: var(--muted, #4e5969);
+  font-size: 13px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.audit-log-item--critical {
+  box-shadow: 0 2px 8px rgba(255, 77, 79, 0.08);
+}
+
+/* Notification bell */
+.notification-bell-badge.ant-badge {
+  display: inline-flex;
+  line-height: 1;
+}
+
+.notification-bell-badge .ant-badge-count {
+  top: 4px !important;
+  right: 4px !important;
+  transform: none !important;
+  box-shadow: 0 0 0 1px #fff;
+}
+
+.notification-bell-btn.ant-btn {
+  width: 36px;
+  height: 36px;
+  color: var(--text, #1d2129);
+}
+
+.notification-bell-btn.ant-btn:hover {
+  color: var(--primary, #165dff);
+  background: #f0f7ff;
+}
+
+.notification-panel {
+  width: 320px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(29, 33, 41, 0.12);
+}
+
+.notification-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 4px 12px;
+  border-bottom: 1px solid var(--line, #e5e6eb);
+}
+
+.notification-panel__header strong {
+  font-size: 14px;
+}
+
+.notification-panel__count {
+  color: var(--muted, #86909c);
+  font-size: 12px;
+}
+
+.notification-panel__empty {
+  margin: 12px 0 4px;
+}
+
+.notification-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.notification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: #fafafa;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.notification-item:hover {
+  background: #f0f7ff;
+  border-color: #d6e8ff;
+}
+
+.notification-item__icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+}
+
+.notification-item__icon--order_bind {
+  color: #1677ff;
+  background: #e6f4ff;
+}
+
+.notification-item__icon--pending_order {
+  color: #fa8c16;
+  background: #fff7e6;
+}
+
+.notification-item__body {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.notification-item__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text, #1d2129);
+}
+
+.notification-item__desc {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted, #86909c);
+}
+
+.menu-item-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.menu-item-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ff4d4f;
+  box-shadow: 0 0 0 2px #fff;
+}
+
+/* Order binding tabs */
+.order-binding-tabs__nav {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  padding: 4px;
+  border-radius: 10px;
+  background: #f2f3f5;
+  width: fit-content;
+}
+
+.order-binding-tabs__btn {
+  padding: 8px 18px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted, #86909c);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.order-binding-tabs__btn.is-active {
+  background: #fff;
+  color: var(--primary, #165dff);
+  box-shadow: 0 2px 8px rgba(29, 33, 41, 0.08);
+}
+
+.order-binding-tabs__btn .ant-badge-dot {
+  width: 7px;
+  height: 7px;
 }

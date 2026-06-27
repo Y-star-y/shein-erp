@@ -49,6 +49,7 @@ export function TextField({
   label,
   multiline,
   onChange,
+  readOnly,
   required,
   value,
 }: {
@@ -56,6 +57,7 @@ export function TextField({
   label: string;
   multiline?: boolean;
   onChange: (value: string) => void;
+  readOnly?: boolean;
   required?: boolean;
   value: string;
 }) {
@@ -68,9 +70,14 @@ export function TextField({
       validateStatus={error ? "error" : undefined}
     >
       {multiline ? (
-        <Input.TextArea autoSize={{ minRows: 3, maxRows: 6 }} value={value} onChange={(event) => onChange(event.target.value)} />
+        <Input.TextArea
+          autoSize={{ minRows: 3, maxRows: 6 }}
+          readOnly={readOnly}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+        />
       ) : (
-        <Input value={value} onChange={(event) => onChange(event.target.value)} />
+        <Input readOnly={readOnly} value={value} onChange={(event) => onChange(event.target.value)} />
       )}
     </Form.Item>
   );

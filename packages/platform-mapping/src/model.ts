@@ -50,21 +50,29 @@ export function validateMapping(
   const platform = value.platform.trim() || "SHEIN";
   const storeName = value.storeName.trim();
   const internalSku = value.internalSku.trim();
-  const platformSkc = value.platformSkc.trim();
+  const sellerSku = value.sellerSku.trim();
+  const platformSku = value.platformSku.trim();
   const targetSku = companySkus.find((item) => item.internalSku === internalSku);
 
   if (!platform) errors.platform = "平台不能为空";
   if (!storeName) errors.storeName = "店铺不能为空";
-  if (!platformSkc) errors.platformSkc = "SHEIN SKC 不能为空";
+  if (!sellerSku && !platformSku) errors.sellerSku = "卖家 SKU 与平台 SKU 至少填写一项";
   if (!internalSku) errors.internalSku = "必须选择内部商品";
   if (internalSku && !targetSku) errors.internalSku = "内部商品不存在";
   if (targetSku?.status === "inactive") errors.internalSku = "停用的内部商品不能新增映射";
 
   if (
-    platformSkc &&
-    mappings.some((item) => item.platformSkc.trim() === platformSkc && (mode === "create" || item.id !== value.id))
+    sellerSku &&
+    mappings.some((item) => item.sellerSku.trim() === sellerSku && (mode === "create" || item.id !== value.id))
   ) {
-    errors.platformSkc = "该 SHEIN SKC 已存在映射";
+    errors.sellerSku = "该卖家 SKU 已存在映射";
+  }
+
+  if (
+    platformSku &&
+    mappings.some((item) => item.platformSku.trim() === platformSku && (mode === "create" || item.id !== value.id))
+  ) {
+    errors.platformSku = "该平台 SKU 已存在映射";
   }
 
   if (

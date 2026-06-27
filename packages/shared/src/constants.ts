@@ -1,6 +1,5 @@
 export const COMPANY_SKU_STORAGE_KEY = "bingyu-erp-company-skus-v2";
 export const PLATFORM_MAPPING_STORAGE_KEY = "bingyu-erp-platform-sku-mappings-v2";
-export const MAINTENANCE_EVENT_STORAGE_KEY = "bingyu-erp-maintenance-events-v1";
 
 export const platformOptions = [
   { label: "SHEIN", value: "SHEIN" },

@@ -120,7 +120,7 @@ export function PlatformMappingPage({
             新增映射
           </Button>
         }
-        description="把每个店铺从 SHEIN 返回的 SKC 绑定到 ERP 内部商品。库存、采购、借货按内部商品走，订单导入按 SHEIN SKC 匹配。"
+        description="把每个店铺从 SHEIN 返回的 SKU 绑定到 ERP 内部商品。匹配键为卖家 SKU / 平台 SKU（全局唯一），平台 SKC 仅作款式/颜色参考。"
         title="SHEIN SKC 映射"
       />
 

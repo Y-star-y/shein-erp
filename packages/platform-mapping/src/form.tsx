@@ -65,8 +65,7 @@ export function MappingForm({
         <TextField error={errors.storeName} label="店铺" required value={value.storeName} onChange={(fieldValue) => setField("storeName", fieldValue)} />
         <TextField
           error={errors.platformSkc}
-          label="SHEIN 平台 SKC"
-          required
+          label="平台 SKC（款式/颜色，可重复）"
           value={value.platformSkc}
           onChange={(fieldValue) => setField("platformSkc", fieldValue)}
         />
@@ -82,8 +81,8 @@ export function MappingForm({
       <FormSection title="平台字段">
         <TextField label="SHEIN 商品 ID" value={value.sheinProductId} onChange={(fieldValue) => setField("sheinProductId", fieldValue)} />
         <TextField label="平台 SPU" value={value.platformSpu} onChange={(fieldValue) => setField("platformSpu", fieldValue)} />
-        <TextField label="平台 SKU" value={value.platformSku} onChange={(fieldValue) => setField("platformSku", fieldValue)} />
-        <TextField label="卖家 SKU" value={value.sellerSku} onChange={(fieldValue) => setField("sellerSku", fieldValue)} />
+        <TextField error={errors.platformSku} label="平台 SKU" value={value.platformSku} onChange={(fieldValue) => setField("platformSku", fieldValue)} />
+        <TextField error={errors.sellerSku} label="卖家 SKU" value={value.sellerSku} onChange={(fieldValue) => setField("sellerSku", fieldValue)} />
         <TextField label="SHEIN 商品名称" value={value.sheinProductName} onChange={(fieldValue) => setField("sheinProductName", fieldValue)} />
       </FormSection>
       <FormSection title="状态与备注">

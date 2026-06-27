@@ -20,6 +20,10 @@ services:
       - "3000:3000"
     environment:
       DATABASE_URL: postgresql://erp:erp@db:5432/shein_erp?schema=public
+      AUTH_SECRET: change-me-in-production
+      ADMIN_EMAIL: admin@example.com
+      ADMIN_PASSWORD: change-me-on-first-login
+      ADMIN_NAME: 超级管理员
     depends_on:
       db:
         condition: service_healthy

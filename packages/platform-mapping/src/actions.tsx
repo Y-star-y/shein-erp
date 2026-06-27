@@ -22,7 +22,7 @@ async function requestJson<T>(url: string, init: RequestInit): Promise<T> {
 }
 
 export function usePlatformMappingActions() {
-  const { companySkus, mappings, setMappings, setModal, modal, recordEvent, pushToast, setConfirm } = useErpStore();
+  const { companySkus, mappings, setMappings, setModal, modal, pushToast, setConfirm } = useErpStore();
 
   const openMappingModal = useCallback((mode: "create" | "edit", value?: PlatformSkuMapping, defaultInternalSku = "") => {
     setModal({ type: "mapping", mode, value: value ? normalizeMapping(value) : createPlatformMapping(defaultInternalSku), errors: {} });
@@ -67,17 +67,11 @@ export function usePlatformMappingActions() {
         setMappings((current) =>
           modal.mode === "create" ? [persisted, ...current] : current.map((item) => (item.id === persisted.id ? persisted : item)),
         );
-        recordEvent(
-          modal.mode === "create" ? "新增 SHEIN 映射" : "编辑 SHEIN 映射",
-          "platformMapping",
-          persisted.platformSkc,
-          `${persisted.storeName} -> ${persisted.internalSku}`,
-        );
         pushToast("success", modal.mode === "create" ? "SHEIN 映射已新增" : "SHEIN 映射已保存");
         setModal(null);
       })
       .catch((error: Error) => pushToast("error", error.message));
-  }, [companySkus, mappings, modal, pushToast, recordEvent, setMappings, setModal]);
+  }, [companySkus, mappings, modal, pushToast, setMappings, setModal]);
 
   const requestMappingStatusChange = useCallback((item: PlatformSkuMapping, status: PlatformSkuMappingStatus) => {
     const action = status === "active" ? "启用" : "停用";
@@ -93,14 +87,13 @@ export function usePlatformMappingActions() {
         })
           .then((persisted) => {
             setMappings((current) => current.map((mapping) => (mapping.id === item.id ? persisted : mapping)));
-            recordEvent(`${action} SHEIN 映射`, "platformMapping", item.platformSkc, `${item.storeName} -> ${item.internalSku}`);
             pushToast("success", `已${action} SHEIN 映射`);
             setConfirm(null);
           })
           .catch((error: Error) => pushToast("error", error.message));
       },
     });
-  }, [pushToast, recordEvent, setConfirm, setMappings]);
+  }, [pushToast, setConfirm, setMappings]);
 
   const requestMappingDelete = useCallback((item: PlatformSkuMapping) => {
     setConfirm({
@@ -113,14 +106,13 @@ export function usePlatformMappingActions() {
           .then((response) => {
             if (!response.ok) throw new Error("删除失败");
             setMappings((current) => current.filter((mapping) => mapping.id !== item.id));
-            recordEvent("删除 SHEIN 映射", "platformMapping", item.platformSkc, `${item.storeName} -> ${item.internalSku}`);
             pushToast("success", "SHEIN 映射已删除");
             setConfirm(null);
           })
           .catch((error: Error) => pushToast("error", error.message));
       },
     });
-  }, [pushToast, recordEvent, setConfirm, setMappings]);
+  }, [pushToast, setConfirm, setMappings]);
 
   return {
     openMappingModal,

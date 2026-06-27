@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   availableStock,
+  findActiveMappingByPlatformSku,
+  findActiveMappingBySellerSku,
   inventoryForOrder,
   matchInventorySnapshot,
   matchOrder,
   orderKey,
+  resolveOrderLineMapping,
+  unmappedGroupKey,
 } from "./business";
 import { demoState } from "./demo-data";
 import type { InventorySnapshot } from "./types";
@@ -59,6 +63,38 @@ describe("ERP business rules", () => {
       matchedStatus: "已匹配" as const,
     };
     expect(inventoryForOrder({ ...demoState, inventorySnapshots: [snapshot] }, order)?.dropshipStockQty).toBe(11);
+  });
+
+  it("resolves mapped order lines by seller sku first", () => {
+    const mappings = [
+      { sellerSku: "seller-1", platformSku: "plat-1", status: "active", internalProductId: "prod-1", id: "map-1" },
+      { sellerSku: "seller-2", platformSku: "plat-2", status: "pending", internalProductId: null, id: "map-2" },
+    ];
+
+    expect(resolveOrderLineMapping({ sellerSku: "seller-1", platformSku: "" }, mappings)).toEqual({
+      status: "mapped",
+      mappingId: "map-1",
+    });
+    expect(resolveOrderLineMapping({ sellerSku: "", platformSku: "plat-1" }, mappings)).toEqual({
+      status: "mapped",
+      mappingId: "map-1",
+    });
+    expect(resolveOrderLineMapping({ sellerSku: "seller-2", platformSku: "plat-2" }, mappings)).toEqual({
+      status: "unmapped",
+    });
+  });
+
+  it("builds unmapped group keys from seller sku or platform sku", () => {
+    expect(unmappedGroupKey("seller-1", "plat-1")).toBe("seller:seller-1");
+    expect(unmappedGroupKey("", "plat-1")).toBe("platform:plat-1");
+  });
+
+  it("finds active mappings by seller or platform sku", () => {
+    const mappings = [
+      { sellerSku: "seller-1", platformSku: "plat-1", status: "active", internalProductId: "prod-1", id: "map-1" },
+    ];
+    expect(findActiveMappingBySellerSku(mappings, "seller-1")?.id).toBe("map-1");
+    expect(findActiveMappingByPlatformSku(mappings, "plat-1")?.id).toBe("map-1");
   });
 });
 

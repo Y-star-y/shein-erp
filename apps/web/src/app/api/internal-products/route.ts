@@ -1,3 +1,5 @@
+import { auditActorId, writeAuditLog } from "@/lib/audit-log";
+import { getSessionOr401, requireModule } from "@/lib/auth-helpers";
 import { databaseErrorOrFallback } from "@/lib/database-error";
 import { parseWarningQuantity, productGroupRelation, toCompanySku } from "@/lib/master-data";
 import { prisma } from "@/lib/prisma";
@@ -11,6 +13,12 @@ function saveErrorResponse(error: unknown) {
 }
 
 export async function POST(request: Request) {
+  const authResult = await getSessionOr401();
+  if ("error" in authResult) return authResult.error;
+
+  const denied = requireModule(authResult.session, "productManagement");
+  if (denied) return denied;
+
   const body = (await request.json()) as CompanySku;
   try {
     const product = await prisma.internalProduct.create({
@@ -33,6 +41,14 @@ export async function POST(request: Request) {
     const persisted = await prisma.internalProduct.findUniqueOrThrow({
       where: { id: product.id },
       include: { productGroup: true },
+    });
+
+    await writeAuditLog({
+      userId: auditActorId(authResult.session),
+      action: "新增内部商品",
+      entity: "InternalProduct",
+      entityId: persisted.id,
+      detail: { internalSku: persisted.internalSku, productNameCn: persisted.productNameCn },
     });
 
     return NextResponse.json(toCompanySku(persisted));

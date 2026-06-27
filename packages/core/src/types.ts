@@ -84,6 +84,10 @@ export type SheinMappedRow = {
   operatorName: string;
   image: string;
   productSku: string;
+  sellerSku: string;
+  platformSku: string;
+  platformSkc: string;
+  platformSpu: string;
   quantity: string;
   orderNo: string;
   recipientName: string;
@@ -101,6 +105,24 @@ export type SheinMappedRow = {
   logisticsCompany: string;
   trackingUploadStatus: string;
   remark: string;
+};
+
+export type ParsedSheinOrderLine = {
+  orderNo: string;
+  createdAt: string;
+  shipBy: string;
+  sellerSku: string;
+  platformSku: string;
+  platformSkc: string;
+  platformSpu: string;
+  productName: string;
+  spec: string;
+  quantity: number;
+  price: number;
+  currency: string;
+  country: string;
+  storeName: string;
+  warehouse: string;
 };
 
 export type SheinOrderMappingResult = {
@@ -175,15 +197,6 @@ export type PlatformSkuMapping = {
   remark: string;
   createdAt: string;
   updatedAt: string;
-};
-
-export type MaintenanceEvent = {
-  id: string;
-  action: string;
-  targetType: "companySku" | "platformMapping";
-  targetCode: string;
-  detail: string;
-  createdAt: string;
 };
 
 export type SkuMapping = {

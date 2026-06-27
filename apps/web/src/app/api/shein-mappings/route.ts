@@ -1,15 +1,16 @@
+import { auditActorId, writeAuditLog } from "@/lib/audit-log";
+import { getSessionOr401, requireModule } from "@/lib/auth-helpers";
+import { validateMappingSkuKeys } from "@/lib/mapping-validation";
 import { toPlatformSkuMapping } from "@/lib/master-data";
 import { prisma } from "@/lib/prisma";
+import { resolveOrCreateStore } from "@/lib/store-access";
 import type { PlatformSkuMapping } from "@shein-erp/shared";
+import type { Session } from "next-auth";
 import { NextResponse } from "next/server";
 
-async function resolveMappingRefs(body: PlatformSkuMapping) {
+async function resolveMappingRefs(session: Session, body: PlatformSkuMapping) {
   const [store, product] = await Promise.all([
-    prisma.store.upsert({
-      where: { name: body.storeName.trim() },
-      update: { platform: body.platform.trim() || "SHEIN" },
-      create: { name: body.storeName.trim(), platform: body.platform.trim() || "SHEIN" },
-    }),
+    resolveOrCreateStore(session, body.storeName, body.platform.trim() || "SHEIN"),
     prisma.internalProduct.findUnique({ where: { internalSku: body.internalSku.trim() } }),
   ]);
 
@@ -21,8 +22,14 @@ async function resolveMappingRefs(body: PlatformSkuMapping) {
 }
 
 export async function POST(request: Request) {
+  const authResult = await getSessionOr401();
+  if ("error" in authResult) return authResult.error;
+
+  const denied = requireModule(authResult.session, "platformMappings");
+  if (denied) return denied;
+
   const body = (await request.json()) as PlatformSkuMapping;
-  const refs = await resolveMappingRefs(body);
+  const refs = await resolveMappingRefs(authResult.session, body);
   if ("error" in refs) return refs.error;
 
   const activeDuplicate = await prisma.sheinProductMapping.findFirst({
@@ -37,12 +44,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "该店铺已经有这个内部商品的启用映射" }, { status: 409 });
   }
 
+  const skuValidation = await validateMappingSkuKeys(body.sellerSku || "", body.platformSku || "");
+  if (!skuValidation.ok) {
+    return NextResponse.json({ error: skuValidation.error }, { status: 400 });
+  }
+
   const mapping = await prisma.sheinProductMapping.create({
     data: {
       platform: body.platform.trim() || "SHEIN",
       storeId: refs.store.id,
       internalProductId: refs.product.id,
-      platformSkc: body.platformSkc.trim(),
+      platformSkc: body.platformSkc.trim() || null,
       platformSku: body.platformSku.trim() || null,
       platformSpu: body.platformSpu.trim() || null,
       sheinProductId: body.sheinProductId.trim() || null,
@@ -52,6 +64,18 @@ export async function POST(request: Request) {
       remark: body.remark.trim() || null,
     },
     include: { store: true, internalProduct: true },
+  });
+
+  await writeAuditLog({
+    userId: auditActorId(authResult.session),
+    action: "新增SHEIN映射",
+    entity: "SheinProductMapping",
+    entityId: mapping.id,
+    detail: {
+      platformSkc: mapping.platformSkc,
+      storeName: mapping.store.name,
+      internalSku: mapping.internalProduct?.internalSku ?? body.internalSku,
+    },
   });
 
   return NextResponse.json(toPlatformSkuMapping(mapping));

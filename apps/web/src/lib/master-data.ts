@@ -65,7 +65,7 @@ export function toPlatformSkuMapping(mapping: MappingWithStore): PlatformSkuMapp
     platform: mapping.platform,
     storeName: mapping.store.name,
     internalSku: mapping.internalProduct?.internalSku || "",
-    platformSkc: mapping.platformSkc,
+    platformSkc: text(mapping.platformSkc),
     platformSku: text(mapping.platformSku),
     sheinProductId: text(mapping.sheinProductId),
     platformSpu: text(mapping.platformSpu),

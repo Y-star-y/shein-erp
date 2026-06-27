@@ -1,18 +1,22 @@
 import * as XLSX from "xlsx";
-import type { InventorySnapshot, Order, SheinOrderMappingResult } from "./types";
+import type { InventorySnapshot, Order, ParsedSheinOrderLine, SheinOrderMappingResult } from "./types";
 
 const aliases: Record<string, string[]> = {
   orderNo: ["GSP订单号", "订单号"],
   createdAt: ["订单创建时间"],
-  shipBy: ["要求发货时间"],
+  shipBy: ["要求签收时间", "要求发货时间"],
   sellerSku: ["卖家SKU"],
   platformSku: ["平台SKU"],
+  platformSkc: ["平台SKC", "平台skc", "平台Skc"],
+  platformSpu: ["平台SPU", "平台spu", "平台Spu"],
   productName: ["商品名称"],
   spec: ["规格"],
   price: ["商品价格"],
   currency: ["币种"],
   country: ["国家/地区", "国家"],
   warehouse: ["仓库"],
+  storeName: ["店铺名称", "店铺名", "店铺"],
+  quantity: ["数量", "商品数量", "购买数量", "订单数量"],
 };
 
 function value(row: Record<string, unknown>, key: string) {
@@ -46,7 +50,7 @@ export async function parseSheinExcel(file: File): Promise<Omit<Order, "skuCode"
       sellerSku: String(value(row, "sellerSku") || "").trim(),
       productName: String(value(row, "productName") || ""),
       spec: String(value(row, "spec") || ""),
-      quantity: 1,
+      quantity: numberValue(value(row, "quantity")) || 1,
       price: Number(value(row, "price") || 0),
       currency: String(value(row, "currency") || ""),
       country: String(value(row, "country") || ""),
@@ -86,6 +90,7 @@ const sheinColumnAliases = {
   recipientPostalCode: ["收件人邮编", "邮编", "邮政编码", "postcode", "zip"],
   productName: ["商品名称", "产品名称", "商品品名"],
   orderCreatedAt: ["订单创建时间", "创建时间", "下单时间"],
+  shipBy: ["要求签收时间", "要求发货时间", "最晚发货时间"],
   warehouseName: ["仓库名称", "仓库"],
   shippingChannel: ["发货渠道（投函/小包）", "发货渠道", "物流渠道"],
   processingStatus: ["可筛选-处理状态（待打包/已...）", "处理状态", "订单状态"],
@@ -150,6 +155,102 @@ function findSheinHeaderRow(rows: unknown[][]) {
   });
 }
 
+export async function parseSheinOrderImportExcel(file: File): Promise<ParsedSheinOrderLine[]> {
+  const data = await file.arrayBuffer();
+  const workbook = XLSX.read(data);
+  const sheetCandidates = workbook.SheetNames.map((name) => ({
+    name,
+    rows: sheetMatrix(workbook.Sheets[name]),
+  }));
+  const target = sheetCandidates.find((sheet) => findSheinHeaderRow(sheet.rows) >= 0);
+
+  if (target && findSheinHeaderRow(target.rows) >= 0) {
+    return parseSheinOrderImportFromMatrix(target.rows);
+  }
+
+  const targetName = workbook.SheetNames.includes("02_SHEIN订单粘贴")
+    ? "02_SHEIN订单粘贴"
+    : workbook.SheetNames[0];
+  const sheet = workbook.Sheets[targetName];
+  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+    range: targetName === "02_SHEIN订单粘贴" ? 3 : 0,
+    defval: "",
+  });
+
+  if (!rows.length || value(rows[0], "orderNo") === undefined) {
+    throw new Error("未找到“GSP订单号”列，请上传 SHEIN 订单导出文件。");
+  }
+
+  return rows
+    .filter((row) => String(value(row, "orderNo") || "").trim())
+    .map((row) => ({
+      orderNo: String(value(row, "orderNo")).trim(),
+      createdAt: String(value(row, "createdAt") || ""),
+      shipBy: String(value(row, "shipBy") || ""),
+      sellerSku: String(value(row, "sellerSku") || "").trim(),
+      platformSku: String(value(row, "platformSku") || "").trim(),
+      platformSkc: String(value(row, "platformSkc") || "").trim(),
+      platformSpu: String(value(row, "platformSpu") || "").trim(),
+      productName: String(value(row, "productName") || ""),
+      spec: String(value(row, "spec") || ""),
+      quantity: numberValue(value(row, "quantity")) || 1,
+      price: Number(value(row, "price") || 0),
+      currency: String(value(row, "currency") || ""),
+      country: String(value(row, "country") || ""),
+      storeName: String(value(row, "storeName") || "").trim(),
+      warehouse: String(value(row, "warehouse") || "").trim(),
+    }))
+    .filter((row) => row.orderNo && (row.sellerSku || row.platformSku));
+}
+
+function parseSheinOrderImportFromMatrix(rows: unknown[][]): ParsedSheinOrderLine[] {
+  const headerRowIndex = findSheinHeaderRow(rows);
+  if (headerRowIndex < 0) {
+    throw new Error("未找到 SHEIN 订单表头，请确认文件包含“卖家SKU/平台SKU”和“商品名称”等列。");
+  }
+
+  const headers = rows[headerRowIndex].map(text);
+  const sellerSkuIndex = findColumnIndex(headers, sheinColumnAliases.sellerSku);
+  const platformSkuIndex = findColumnIndex(headers, sheinColumnAliases.platformSku);
+  const platformSkcIndex = findColumnIndex(headers, sheinColumnAliases.platformSkc);
+  const platformSpuIndex = findColumnIndex(headers, sheinColumnAliases.platformSpu);
+  const productNameIndex = findColumnIndex(headers, sheinColumnAliases.productName);
+
+  if (productNameIndex < 0 || [sellerSkuIndex, platformSkuIndex, platformSkcIndex, platformSpuIndex].every((index) => index < 0)) {
+    throw new Error("SHEIN 订单缺少核心列：至少需要“商品名称”和一个 SKU 列。");
+  }
+
+  return rows
+    .slice(headerRowIndex + 1)
+    .filter((row) => row.some((cell) => text(cell)))
+    .map((row) => {
+      const sellerSku = readCell(row, sellerSkuIndex);
+      const platformSku = readCell(row, platformSkuIndex);
+      const platformSkc = readCell(row, platformSkcIndex);
+      const platformSpu = readCell(row, platformSpuIndex);
+      const quantityText = readByAliases(headers, row, sheinColumnAliases.quantity) || "1";
+
+      return {
+        orderNo: readByAliases(headers, row, sheinColumnAliases.orderNo),
+        createdAt: readByAliases(headers, row, sheinColumnAliases.orderCreatedAt),
+        shipBy: readByAliases(headers, row, sheinColumnAliases.shipBy),
+        sellerSku,
+        platformSku,
+        platformSkc,
+        platformSpu,
+        productName: readCell(row, productNameIndex),
+        spec: "",
+        quantity: numberValue(quantityText) || 1,
+        price: 0,
+        currency: "",
+        country: "",
+        storeName: readByAliases(headers, row, sheinColumnAliases.storeName),
+        warehouse: readByAliases(headers, row, sheinColumnAliases.warehouseName),
+      };
+    })
+    .filter((row) => row.orderNo && (row.sellerSku || row.platformSku));
+}
+
 export async function parseSheinOrderMappingExcel(file: File): Promise<SheinOrderMappingResult> {
   const data = await file.arrayBuffer();
   const workbook = XLSX.read(data);
@@ -186,11 +287,11 @@ export async function parseSheinOrderMappingExcel(file: File): Promise<SheinOrde
 
   const rows = dataRows
     .map((row, index) => {
-      const productSku =
-        readCell(row, sellerSkuIndex) ||
-        readCell(row, platformSkuIndex) ||
-        readCell(row, platformSkcIndex) ||
-        readCell(row, platformSpuIndex);
+      const sellerSku = readCell(row, sellerSkuIndex);
+      const platformSku = readCell(row, platformSkuIndex);
+      const platformSkc = readCell(row, platformSkcIndex);
+      const platformSpu = readCell(row, platformSpuIndex);
+      const productSku = sellerSku || platformSku || platformSkc || platformSpu;
       const recipientName =
         readByAliases(headers, row, sheinColumnAliases.recipientName) ||
         joinCells([
@@ -213,6 +314,10 @@ export async function parseSheinOrderMappingExcel(file: File): Promise<SheinOrde
         operatorName: "",
         image: "",
         productSku,
+        sellerSku,
+        platformSku,
+        platformSkc,
+        platformSpu,
         quantity,
         orderNo: readByAliases(headers, row, sheinColumnAliases.orderNo),
         recipientName,

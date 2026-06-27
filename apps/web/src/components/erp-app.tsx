@@ -1,5 +1,12 @@
 "use client";
 
+import { NotificationBell } from "@/components/notification-bell";
+import { useNotifications } from "@/hooks/use-notifications";
+import { UserManagementPage } from "@/components/admin/user-management-page";
+import { StoreManagementPage } from "@/components/admin/store-management-page";
+import { WarehouseManagementPage } from "@/components/admin/warehouse-management-page";
+import { InventoryManagementPage } from "@/components/admin/inventory-management-page";
+import { ProfilePage } from "@/components/profile/profile-page";
 import {
   CompanySkuForm,
   CompanySkuPage,
@@ -7,13 +14,18 @@ import {
   normalizeCompanySku,
   useCompanySkuActions,
 } from "@shein-erp/company-sku";
-import { OpsConsolePage } from "@shein-erp/ops-console";
+import { canAccessModule, firstAccessiblePage } from "@/lib/permissions";
 import {
   MappingForm,
   PlatformMappingPage,
   normalizeMapping,
   usePlatformMappingActions,
 } from "@shein-erp/platform-mapping";
+import {
+  BindForm,
+  OrderBindingPage,
+  useOrderBindingActions,
+} from "@shein-erp/order-binding";
 import {
   AppModal,
   ConfirmModal,
@@ -22,25 +34,55 @@ import {
   useErpStore,
   type PageKey,
 } from "@shein-erp/shared";
-import { Button, ConfigProvider, Input, Layout, Menu, theme } from "antd";
-import { Layers3, Package, Plus, Search, Tag } from "lucide-react";
-import { useMemo } from "react";
+import type { AppModule } from "@prisma/client";
+import { Button, Input, Layout, Menu, Spin, Tag } from "antd";
+import {
+  ClipboardList,
+  LogOut,
+  Package,
+  Plus,
+  Search,
+  Store,
+  Tag as TagIcon,
+  User,
+  UserCog,
+  Warehouse,
+} from "lucide-react";
+import { signOut, useSession } from "next-auth/react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSessionGuard } from "@/hooks/use-session-guard";
 
-const menuSections = [
+const roleLabels: Record<string, string> = {
+  ADMIN: "管理员",
+  OPERATIONS: "运营部",
+  LOGISTICS: "物流部",
+};
+
+const allMenuSections = [
   {
-    title: "运营工作台",
-    items: [{ key: "dashboard" as PageKey, title: "首页", icon: Layers3 }],
+    title: "运营部",
+    items: [
+      { key: "productManagement" as PageKey, title: "商品管理", icon: Package },
+      { key: "storeManagement" as PageKey, title: "店铺管理", icon: Store },
+      { key: "inventoryManagement" as PageKey, title: "库存管理", icon: Warehouse },
+      { key: "orderManagement" as PageKey, title: "订单管理", icon: ClipboardList },
+      { key: "platformMappings" as PageKey, title: "SHEIN映射", icon: TagIcon },
+    ],
   },
   {
-    title: "商品资料",
-    items: [
-      { key: "companySku" as PageKey, title: "内部商品", icon: Package },
-      { key: "platformMappings" as PageKey, title: "SHEIN映射", icon: Tag },
-    ],
+    title: "物流部",
+    items: [{ key: "warehouseManagement" as PageKey, title: "仓库管理", icon: Warehouse }],
+  },
+  {
+    title: "系统管理",
+    items: [{ key: "userManagement" as PageKey, title: "员工管理", icon: UserCog }],
   },
 ];
 
 function ErpShell() {
+  const { data: session, status } = useSession();
+  useSessionGuard();
+  const permissions = (session?.user?.permissions ?? []) as AppModule[];
   const {
     page,
     setPage,
@@ -59,22 +101,87 @@ function ErpShell() {
 
   const companyActions = useCompanySkuActions();
   const mappingActions = usePlatformMappingActions();
+  const [unmappedReloadKey, setUnmappedReloadKey] = useState(0);
+  const [notificationRefreshKey, setNotificationRefreshKey] = useState(0);
+  const [orderBindingTab, setOrderBindingTab] = useState("import");
+  const { summary: notifications } = useNotifications(notificationRefreshKey + unmappedReloadKey);
 
-  const activeTitle = useMemo(
-    () => menuSections.flatMap((section) => section.items).find((item) => item.key === page)?.title || "首页",
-    [page],
+  const bumpNotifications = useCallback(() => {
+    setNotificationRefreshKey((value) => value + 1);
+  }, []);
+
+  const orderBindingActions = useOrderBindingActions(() => {
+    setUnmappedReloadKey((value) => value + 1);
+    bumpNotifications();
+  });
+
+  const navigateTo = useCallback(
+    (nextPage: PageKey, tab?: string) => {
+      if (session?.user && !canAccessModule(session.user, nextPage)) {
+        setPage(firstAccessiblePage(permissions));
+        return;
+      }
+      if (nextPage === "orderManagement" && tab) {
+        setOrderBindingTab(tab);
+      }
+      setPage(nextPage);
+    },
+    [permissions, session?.user, setPage],
   );
 
-  const menuItems = menuSections.map((section) => ({
+  useEffect(() => {
+    if (!session?.user) return;
+    if (!canAccessModule(session.user, page)) {
+      setPage(firstAccessiblePage(permissions));
+    }
+  }, [page, permissions, session?.user, setPage]);
+
+  const visibleMenuSections = useMemo(() => {
+    if (!session?.user) return [];
+    return allMenuSections
+      .map((section) => ({
+        ...section,
+        items: section.items.filter((item) => canAccessModule(session.user, item.key)),
+      }))
+      .filter((section) => section.items.length > 0);
+  }, [session]);
+
+  const activeTitle = useMemo(() => {
+    if (page === "profile") return "个人信息";
+    return visibleMenuSections.flatMap((section) => section.items).find((item) => item.key === page)?.title || "ERP";
+  }, [page, visibleMenuSections]);
+
+  const hasOrderNotifications = notifications.total > 0;
+
+  const menuItems = visibleMenuSections.map((section) => ({
     key: section.title,
     label: section.title,
     type: "group" as const,
     children: section.items.map((item) => ({
       key: item.key,
       icon: <item.icon size={17} />,
-      label: item.title,
+      label:
+        item.key === "orderManagement" && hasOrderNotifications ? (
+          <span className="menu-item-label">
+            {item.title}
+            <span className="menu-item-dot" aria-hidden />
+          </span>
+        ) : (
+          item.title
+        ),
     })),
   }));
+
+  const showProductToolbar = page === "productManagement";
+  const showMappingToolbar = page === "platformMappings";
+
+  if (status === "loading") {
+    return (
+      <div className="erp-shell-loading">
+        <Spin size="large" />
+      </div>
+    );
+  }
 
   return (
     <Layout className="erp-shell">
@@ -83,7 +190,7 @@ function ErpShell() {
           <div className="brand-logo">ERP</div>
           <div>
             <strong>冰域 ERP</strong>
-            <span>商品映射基础资料</span>
+            <span>跨境电商运营系统</span>
           </div>
         </div>
         <Menu
@@ -91,44 +198,69 @@ function ErpShell() {
           items={menuItems}
           mode="inline"
           selectedKeys={[page]}
-          onClick={({ key }) => setPage(key as PageKey)}
+          onClick={({ key }) => navigateTo(key as PageKey)}
         />
       </Layout.Sider>
 
       <Layout className="erp-main">
         <Layout.Header className="erp-topbar">
           <div>
-            <p>第一阶段</p>
+            <p>权限模块</p>
             <h1>{activeTitle}</h1>
           </div>
-          {page !== "dashboard" && (
-            <div className="topbar-actions">
-              <Input
-                className="search-shell"
-                prefix={<Search size={16} />}
-                placeholder={page === "platformMappings" ? "搜索 SHEIN SKC、店铺、内部商品编码" : "搜索内部商品编码、商品名、供应商"}
-                value={page === "platformMappings" ? mappingQuery : companyQuery}
-                onChange={(event) => (page === "platformMappings" ? setMappingQuery(event.target.value) : setCompanyQuery(event.target.value))}
-              />
-              <Button
-                icon={<Plus size={16} />}
-                type="primary"
-                onClick={() => (page === "platformMappings" ? mappingActions.openMappingModal("create") : companyActions.openCompanyModal("create"))}
-              >
-                {page === "platformMappings" ? "新增映射" : "新增内部商品"}
-              </Button>
-            </div>
-          )}
+          <div className="topbar-actions">
+            {showProductToolbar && (
+              <>
+                <Input
+                  className="search-shell"
+                  prefix={<Search size={16} />}
+                  placeholder="搜索内部商品编码、商品名、供应商"
+                  value={companyQuery}
+                  onChange={(event) => setCompanyQuery(event.target.value)}
+                />
+                <Button icon={<Plus size={16} />} type="primary" onClick={() => companyActions.openCompanyModal("create")}>
+                  新增商品
+                </Button>
+              </>
+            )}
+            {showMappingToolbar && (
+              <>
+                <Input
+                  className="search-shell"
+                  prefix={<Search size={16} />}
+                  placeholder="搜索 SHEIN SKC、店铺、内部商品编码"
+                  value={mappingQuery}
+                  onChange={(event) => setMappingQuery(event.target.value)}
+                />
+                <Button icon={<Plus size={16} />} type="primary" onClick={() => mappingActions.openMappingModal("create")}>
+                  新增映射
+                </Button>
+              </>
+            )}
+            {session?.user ? (
+              <div className="user-menu">
+                <NotificationBell summary={notifications} onNavigate={navigateTo} />
+                <span className="user-name">{session.user.name}</span>
+                <Tag>{roleLabels[session.user.role] ?? session.user.role}</Tag>
+                <Button icon={<User size={16} />} onClick={() => setPage("profile")}>
+                  个人信息
+                </Button>
+                <Button
+                  icon={<LogOut size={16} />}
+                  onClick={async () => {
+                    await fetch("/api/auth/logout-audit", { method: "POST" });
+                    await signOut({ callbackUrl: "/login" });
+                  }}
+                >
+                  退出登录
+                </Button>
+              </div>
+            ) : null}
+          </div>
         </Layout.Header>
 
         <Layout.Content className="erp-workspace">
-          {page === "dashboard" && (
-            <OpsConsolePage
-              onCreateCompanySku={() => companyActions.openCompanyModal("create")}
-              onCreateMapping={() => mappingActions.openMappingModal("create")}
-            />
-          )}
-          {page === "companySku" && (
+          {page === "productManagement" && session?.user && canAccessModule(session.user, "productManagement") && (
             <CompanySkuPage
               onCreate={() => companyActions.openCompanyModal("create")}
               onDelete={companyActions.requestCompanyDelete}
@@ -136,7 +268,23 @@ function ErpShell() {
               onStatusChange={companyActions.requestCompanyStatusChange}
             />
           )}
-          {page === "platformMappings" && (
+          {page === "storeManagement" && session?.user && canAccessModule(session.user, "storeManagement") && (
+            <StoreManagementPage />
+          )}
+          {page === "inventoryManagement" && session?.user && canAccessModule(session.user, "inventoryManagement") && (
+            <InventoryManagementPage />
+          )}
+          {page === "orderManagement" && session?.user && canAccessModule(session.user, "orderManagement") && (
+            <OrderBindingPage
+              activeTab={orderBindingTab}
+              unmappedCount={notifications.unmappedCount}
+              unmappedReloadKey={unmappedReloadKey}
+              onBind={orderBindingActions.openBindModal}
+              onImported={bumpNotifications}
+              onTabChange={setOrderBindingTab}
+            />
+          )}
+          {page === "platformMappings" && session?.user && canAccessModule(session.user, "platformMappings") && (
             <PlatformMappingPage
               onCreate={() => mappingActions.openMappingModal("create")}
               onDelete={mappingActions.requestMappingDelete}
@@ -144,6 +292,13 @@ function ErpShell() {
               onStatusChange={mappingActions.requestMappingStatusChange}
             />
           )}
+          {page === "warehouseManagement" && session?.user && canAccessModule(session.user, "warehouseManagement") && (
+            <WarehouseManagementPage />
+          )}
+          {page === "userManagement" && session?.user && canAccessModule(session.user, "userManagement") && (
+            <UserManagementPage />
+          )}
+          {page === "profile" && session?.user && <ProfilePage />}
         </Layout.Content>
       </Layout>
 
@@ -171,6 +326,17 @@ function ErpShell() {
           />
         </AppModal>
       )}
+      {modal?.type === "orderBind" && (
+        <AppModal title="绑定 SHEIN SKC 到内部商品" onClose={() => setModal(null)}>
+          <BindForm
+            activeCompanySkus={activeCompanySkus}
+            errors={modal.errors}
+            onChange={orderBindingActions.updateBindValue}
+            onSubmit={orderBindingActions.saveBind}
+            value={modal.value}
+          />
+        </AppModal>
+      )}
       <ConfirmModal confirm={confirm} onCancel={() => setConfirm(null)} />
       <ToastHost toasts={toasts} />
     </Layout>
@@ -179,24 +345,12 @@ function ErpShell() {
 
 export function ErpApp() {
   return (
-    <ConfigProvider
-      theme={{
-        algorithm: theme.defaultAlgorithm,
-        token: {
-          borderRadius: 8,
-          colorPrimary: "#165dff",
-          fontFamily:
-            'Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif',
-        },
-      }}
+    <ErpProvider
+      isSkuIncomplete={isSkuIncomplete}
+      normalizeCompanySku={normalizeCompanySku}
+      normalizeMapping={normalizeMapping}
     >
-      <ErpProvider
-        isSkuIncomplete={isSkuIncomplete}
-        normalizeCompanySku={normalizeCompanySku}
-        normalizeMapping={normalizeMapping}
-      >
-        <ErpShell />
-      </ErpProvider>
-    </ConfigProvider>
+      <ErpShell />
+    </ErpProvider>
   );
 }
