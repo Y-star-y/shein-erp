@@ -2,6 +2,7 @@ import { auditActorId, writeAuditLog } from "@/lib/audit-log";
 import { getSessionOr401, requireModule } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 import { findAccessibleStore, isStoreAdmin, toStoreRecord } from "@/lib/store-access";
+import { verifyUserPassword } from "@/lib/user-profile";
 import { NextResponse } from "next/server";
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -12,11 +13,33 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (denied) return denied;
 
   const { id } = await params;
-  const body = (await request.json()) as { name?: string; platform?: string; active?: boolean };
+  const body = (await request.json()) as {
+    name?: string;
+    platform?: string;
+    active?: boolean;
+    password?: string;
+  };
 
   const store = await findAccessibleStore(authResult.session, id);
   if (!store) {
     return NextResponse.json({ error: "店铺不存在或无权访问" }, { status: 404 });
+  }
+
+  if (body.active === false && store.active) {
+    const password = body.password?.toString() ?? "";
+    if (!password) {
+      return NextResponse.json({ error: "注销店铺需验证登录密码" }, { status: 400 });
+    }
+
+    const actor = await prisma.user.findUnique({ where: { id: authResult.session.user.id } });
+    if (!actor?.passwordHash) {
+      return NextResponse.json({ error: "当前账户未设置密码，请联系管理员" }, { status: 400 });
+    }
+
+    const valid = await verifyUserPassword(authResult.session.user.id, password);
+    if (!valid) {
+      return NextResponse.json({ error: "密码不正确" }, { status: 403 });
+    }
   }
 
   if (body.name?.trim() && body.name.trim() !== store.name) {
@@ -40,7 +63,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   await writeAuditLog({
     userId: auditActorId(authResult.session),
-    action: "编辑店铺",
+    action: body.active === false && store.active ? "注销店铺" : "编辑店铺",
     entity: "Store",
     entityId: updated.id,
     detail: { name: updated.name, platform: updated.platform, active: updated.active, ownerId: updated.ownerId },

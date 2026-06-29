@@ -111,6 +111,7 @@ export type ParsedSheinOrderLine = {
   orderNo: string;
   createdAt: string;
   shipBy: string;
+  deliverBy: string;
   sellerSku: string;
   platformSku: string;
   platformSkc: string;
@@ -123,6 +124,13 @@ export type ParsedSheinOrderLine = {
   country: string;
   storeName: string;
   warehouse: string;
+  processingStatus: string;
+  logisticsNo: string;
+  logisticsCompany: string;
+  recipientName: string;
+  recipientPhone: string;
+  recipientAddress: string;
+  recipientPostalCode: string;
 };
 
 export type SheinOrderMappingResult = {
@@ -176,7 +184,6 @@ export type CompanySku = {
   model: string;
   imageUrl: string;
   supplierUrl: string;
-  defaultWarningQuantity: string;
   source: "manual";
   createdAt: string;
   updatedAt: string;

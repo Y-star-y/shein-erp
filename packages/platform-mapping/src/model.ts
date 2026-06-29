@@ -94,3 +94,17 @@ export function validateMapping(
 
   return errors;
 }
+
+/** 用于确认弹窗等场景，优先展示唯一匹配键（平台 SKU / 卖家 SKU） */
+export function mappingMatchKeyLabel(item: Pick<PlatformSkuMapping, "platformSku" | "sellerSku" | "platformSkc">) {
+  const platformSku = item.platformSku?.trim();
+  if (platformSku) return `平台 SKU「${platformSku}」`;
+
+  const sellerSku = item.sellerSku?.trim();
+  if (sellerSku) return `卖家 SKU「${sellerSku}」`;
+
+  const platformSkc = item.platformSkc?.trim();
+  if (platformSkc) return `平台 SKC「${platformSkc}」（参考）`;
+
+  return "该映射";
+}

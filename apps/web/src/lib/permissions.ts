@@ -18,9 +18,10 @@ export const MODULE_LABELS: Record<AppModule, string> = {
   productManagement: "商品管理",
   storeManagement: "店铺管理",
   inventoryManagement: "库存管理",
-  orderManagement: "订单管理",
+  orderManagement: "待办任务",
   platformMappings: "SHEIN映射",
   warehouseManagement: "仓库管理",
+  companyManagement: "公司管理",
   userManagement: "员工管理",
 };
 
@@ -29,7 +30,6 @@ export const OPERATIONS_MODULES: AppModule[] = [
   "storeManagement",
   "inventoryManagement",
   "orderManagement",
-  "platformMappings",
 ];
 
 export const LOGISTICS_MODULES: AppModule[] = ["warehouseManagement"];
@@ -39,7 +39,12 @@ export const ASSIGNABLE_BY_ROLE: Record<Exclude<Role, "ADMIN">, AppModule[]> = {
   LOGISTICS: LOGISTICS_MODULES,
 };
 
-export const ADMIN_MODULES: AppModule[] = [...OPERATIONS_MODULES, "warehouseManagement", "userManagement"];
+export const ADMIN_MODULES: AppModule[] = [
+  ...OPERATIONS_MODULES,
+  "warehouseManagement",
+  "companyManagement",
+  "userManagement",
+];
 
 export const ROLE_DEFAULT_MODULES = ASSIGNABLE_BY_ROLE;
 
@@ -59,7 +64,9 @@ export function normalizePermissions(
   }
 
   const allowed = ASSIGNABLE_BY_ROLE[role as Exclude<Role, "ADMIN">] ?? [];
-  const filtered = selected.filter((module) => module !== "userManagement" && allowed.includes(module));
+  const filtered = selected.filter(
+    (module) => module !== "userManagement" && module !== "companyManagement" && allowed.includes(module),
+  );
   const unique = [...new Set(filtered)];
 
   if (!unique.length) {
@@ -80,18 +87,26 @@ export function canAccessModule(
   return permissions.includes(module as AppModule);
 }
 
+export function canAccessMappings(user: { permissions?: AppModule[] }): boolean {
+  return (
+    canAccessModule(user, "platformMappings") ||
+    canAccessModule(user, "storeManagement") ||
+    canAccessModule(user, "orderManagement")
+  );
+}
+
 const PAGE_ORDER: PageKey[] = [
+  "orderManagement",
   "productManagement",
   "storeManagement",
   "inventoryManagement",
-  "orderManagement",
-  "platformMappings",
   "warehouseManagement",
+  "companyManagement",
   "userManagement",
 ];
 
 export function firstAccessiblePage(permissions: AppModule[]): PageKey {
-  return PAGE_ORDER.find((page) => permissions.includes(page as AppModule)) ?? "productManagement";
+  return PAGE_ORDER.find((page) => permissions.includes(page as AppModule)) ?? "orderManagement";
 }
 
 export function toUserRecord(user: {
@@ -102,6 +117,8 @@ export function toUserRecord(user: {
   idNumber?: string | null;
   phone?: string | null;
   role: Role;
+  companyId?: string | null;
+  company?: { id: string; name: string } | null;
   permissions: AppModule[];
   active: boolean;
   failedLoginAttempts?: number;
@@ -121,6 +138,8 @@ export function toUserRecord(user: {
     idNumber: user.idNumber ?? null,
     phone: user.phone ?? null,
     role: user.role,
+    companyId: user.companyId ?? user.company?.id ?? null,
+    companyName: user.company?.name ?? null,
     permissions: user.permissions,
     active: user.active,
     failedLoginAttempts: user.failedLoginAttempts ?? 0,

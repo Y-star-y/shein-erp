@@ -11,6 +11,8 @@ declare module "next-auth" {
       idNumberRevealed: boolean;
       mustChangePassword: boolean;
       sessionVersion: number;
+      companyId: string | null;
+      companyName: string | null;
     } & DefaultSession["user"];
   }
 
@@ -19,6 +21,8 @@ declare module "next-auth" {
     permissions: AppModule[];
     mustChangePassword?: boolean;
     sessionVersion?: number;
+    companyId?: string | null;
+    companyName?: string | null;
   }
 }
 
@@ -30,6 +34,8 @@ declare module "next-auth/jwt" {
     idNumberRevealed?: boolean;
     mustChangePassword?: boolean;
     sessionVersion?: number;
+    companyId?: string | null;
+    companyName?: string | null;
   }
 }
 

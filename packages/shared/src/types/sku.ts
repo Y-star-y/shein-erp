@@ -1,19 +1,19 @@
 export type CompanySkuStatus = "active" | "inactive";
 
+export type ProductAttributeType = "text" | "number";
+
+export type ProductAttribute = {
+  key: string;
+  type: ProductAttributeType;
+  value: string | number;
+};
+
 export type CompanySku = {
   id: string;
   internalSku: string;
-  productGroupName: string;
-  productNameCn: string;
+  companyName: string;
+  attributes: ProductAttribute[];
   status: CompanySkuStatus;
-  specification: string;
-  color: string;
-  size: string;
-  model: string;
-  imageUrl: string;
-  supplierUrl: string;
-  defaultWarningQuantity: string;
-  source: "manual" | "shein_order";
   createdAt: string;
   updatedAt: string;
 };
@@ -42,8 +42,8 @@ export type PageKey =
   | "storeManagement"
   | "inventoryManagement"
   | "orderManagement"
-  | "platformMappings"
   | "warehouseManagement"
+  | "companyManagement"
   | "userManagement"
   | "profile";
 
@@ -94,15 +94,7 @@ export type UnmappedOrderLine = UnmappedSkcGroup & {
   orderNo: string;
   orderCreatedAt: string | null;
   shipBy: string | null;
-};
-
-export type OrderBindNewProduct = {
-  internalSku: string;
-  productNameCn: string;
-  productGroupName: string;
-  specification: string;
-  color: string;
-  size: string;
+  deliverBy: string | null;
 };
 
 export type OrderBindRequest = {
@@ -114,13 +106,10 @@ export type OrderBindRequest = {
   platformSpu: string;
   sheinProductName: string;
   remark: string;
-  productMode: "existing" | "create";
-  newProduct: OrderBindNewProduct;
 };
 export type OrderBindResult = {
   mapping: PlatformSkuMapping;
   updatedLineCount: number;
-  companySku?: CompanySku;
 };
 
 export type SelectOption = {
@@ -135,3 +124,76 @@ export type ModalState =
   | { type: "mapping"; mode: "create" | "edit"; value: PlatformSkuMapping; errors: FormErrors }
   | { type: "orderBind"; value: OrderBindRequest; errors: FormErrors }
   | null;
+
+export type StoreRecord = {
+  id: string;
+  name: string;
+  platform: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+  ownerId?: string;
+  ownerName?: string;
+  ownerEmail?: string;
+};
+
+export type StoreOrderStatus = "PENDING" | "READY" | "SHIPPED" | "EXCEPTION";
+
+export type StoreOrderSummary = {
+  id: string;
+  orderNo: string;
+  createdAt: string;
+  shipBy: string | null;
+  deliverBy: string | null;
+  status: StoreOrderStatus;
+  platformStatus: string | null;
+  logisticsNo: string | null;
+  logisticsCompany: string | null;
+  lineCount: number;
+  unmappedLineCount: number;
+  storeName: string;
+};
+
+export type StoreOrderLineDetail = {
+  id: string;
+  sellerSku: string;
+  platformSku: string | null;
+  platformSkc: string | null;
+  platformSpu: string | null;
+  productName: string;
+  spec: string | null;
+  quantity: number;
+  price: number | null;
+  mappingStatus: "mapped" | "unmapped";
+  internalSku: string | null;
+};
+
+export type StoreOrderDetail = StoreOrderSummary & {
+  country: string | null;
+  recipientName: string | null;
+  recipientPhone: string | null;
+  recipientAddress: string | null;
+  recipientPostalCode: string | null;
+  lines: StoreOrderLineDetail[];
+};
+
+export type StoreOrdersListResponse = {
+  orders: StoreOrderSummary[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+export type StoreInventoryRow = {
+  mappingId: string;
+  internalProductId: string | null;
+  sellerSku: string;
+  internalSku: string;
+  productName: string;
+  sku: string | null;
+  warehouseQty: number | null;
+  inTransitQty: number;
+  availableQty: number | null;
+  warningQuantity: number;
+  isLowStock: boolean;
+};

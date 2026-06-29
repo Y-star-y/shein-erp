@@ -1,7 +1,8 @@
 import { getSessionOr401 } from "@/lib/auth-helpers";
-import { canAccessModule } from "@/lib/permissions";
+import { canAccessModule, canAccessMappings } from "@/lib/permissions";
 import { toCompanySku, toPlatformSkuMapping } from "@/lib/master-data";
 import { databaseErrorDetail, databaseErrorMessage } from "@/lib/database-error";
+import { findInternalProductsForSession } from "@/lib/internal-product-access";
 import { prisma } from "@/lib/prisma";
 import { mappingsWhereForSession } from "@/lib/store-access";
 import { NextResponse } from "next/server";
@@ -12,7 +13,7 @@ export async function GET() {
 
   const { session } = authResult;
   const canProducts = canAccessModule(session.user, "productManagement");
-  const canMappings = canAccessModule(session.user, "platformMappings");
+  const canMappings = canAccessMappings(session.user);
 
   if (!canProducts && !canMappings) {
     return NextResponse.json({ companySkus: [], mappings: [] });
@@ -20,9 +21,7 @@ export async function GET() {
 
   try {
     const [products, mappings] = await Promise.all([
-      canProducts
-        ? prisma.internalProduct.findMany({ include: { productGroup: true }, orderBy: { updatedAt: "desc" } })
-        : Promise.resolve([]),
+      canProducts ? findInternalProductsForSession(session) : Promise.resolve([]),
       canMappings
         ? prisma.sheinProductMapping.findMany({
             where: mappingsWhereForSession(session),

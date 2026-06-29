@@ -12,6 +12,7 @@ type UpdateUserBody = {
   gender?: "MALE" | "FEMALE" | null;
   idNumber?: string;
   phone?: string;
+  companyId?: string;
   role?: Role;
   permissions?: AppModule[];
   active?: boolean;
@@ -65,6 +66,22 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return NextResponse.json({ error: "只能设置运营部或物流部" }, { status: 400 });
     }
 
+    let nextCompanyId = user.companyId;
+    if (body.companyId !== undefined) {
+      const companyId = body.companyId.trim();
+      if (!companyId) {
+        return NextResponse.json({ error: "请选择所属公司" }, { status: 400 });
+      }
+      const company = await prisma.company.findUnique({ where: { id: companyId } });
+      if (!company) {
+        return NextResponse.json({ error: "所选公司不存在" }, { status: 400 });
+      }
+      if (!company.active) {
+        return NextResponse.json({ error: "所选公司已停用" }, { status: 400 });
+      }
+      nextCompanyId = companyId;
+    }
+
     let permissions = user.permissions;
     if (body.permissions !== undefined || body.role !== undefined) {
       const selected = body.permissions?.length
@@ -105,6 +122,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         ...(body.gender !== undefined ? { gender: body.gender } : {}),
         ...(body.idNumber !== undefined ? { idNumber: nextIdNumber } : {}),
         ...(body.phone !== undefined ? { phone: nextPhone } : {}),
+        ...(body.companyId !== undefined ? { companyId: nextCompanyId } : {}),
         ...(body.role !== undefined ? { role: nextRole } : {}),
         ...(body.active !== undefined ? { active: body.active } : {}),
         ...(body.active === false ? { sessionVersion: { increment: 1 } } : {}),
@@ -116,6 +134,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
             }
           : {}),
       },
+      include: { company: { select: { id: true, name: true } } },
     });
 
     await writeAuditLog({
@@ -131,6 +150,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         gender: updated.gender,
         idNumber: updated.idNumber,
         phone: updated.phone,
+        companyId: updated.companyId,
+        companyName: updated.company?.name,
       },
     });
 

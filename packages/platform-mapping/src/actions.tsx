@@ -2,7 +2,7 @@
 
 import { nowText, useErpStore, type PlatformSkuMapping, type PlatformSkuMappingStatus } from "@shein-erp/shared";
 import { useCallback } from "react";
-import { createPlatformMapping, normalizeMapping, validateMapping } from "./model";
+import { createPlatformMapping, mappingMatchKeyLabel, normalizeMapping, validateMapping } from "./model";
 
 async function requestJson<T>(url: string, init: RequestInit): Promise<T> {
   const response = await fetch(url, {
@@ -67,7 +67,7 @@ export function usePlatformMappingActions() {
         setMappings((current) =>
           modal.mode === "create" ? [persisted, ...current] : current.map((item) => (item.id === persisted.id ? persisted : item)),
         );
-        pushToast("success", modal.mode === "create" ? "SHEIN 映射已新增" : "SHEIN 映射已保存");
+        pushToast("success", modal.mode === "create" ? "平台 SKU 映射已新增" : "平台 SKU 映射已保存");
         setModal(null);
       })
       .catch((error: Error) => pushToast("error", error.message));
@@ -76,8 +76,8 @@ export function usePlatformMappingActions() {
   const requestMappingStatusChange = useCallback((item: PlatformSkuMapping, status: PlatformSkuMappingStatus) => {
     const action = status === "active" ? "启用" : "停用";
     setConfirm({
-      title: `${action} SHEIN 映射`,
-      description: `确认${action}「${item.platformSkc}」吗？`,
+      title: `${action}平台 SKU 映射`,
+      description: `确认${action}${mappingMatchKeyLabel(item)}吗？`,
       confirmText: action,
       tone: status === "inactive" ? "danger" : "primary",
       onConfirm: () => {
@@ -87,7 +87,7 @@ export function usePlatformMappingActions() {
         })
           .then((persisted) => {
             setMappings((current) => current.map((mapping) => (mapping.id === item.id ? persisted : mapping)));
-            pushToast("success", `已${action} SHEIN 映射`);
+            pushToast("success", `已${action}平台 SKU 映射`);
             setConfirm(null);
           })
           .catch((error: Error) => pushToast("error", error.message));
@@ -97,8 +97,8 @@ export function usePlatformMappingActions() {
 
   const requestMappingDelete = useCallback((item: PlatformSkuMapping) => {
     setConfirm({
-      title: "删除 SHEIN 映射",
-      description: `确认删除「${item.platformSkc}」吗？内部商品不会被删除。`,
+      title: "删除平台 SKU 映射",
+      description: `确认删除${mappingMatchKeyLabel(item)}吗？内部商品不会被删除。`,
       confirmText: "删除",
       tone: "danger",
       onConfirm: () => {
@@ -106,7 +106,7 @@ export function usePlatformMappingActions() {
           .then((response) => {
             if (!response.ok) throw new Error("删除失败");
             setMappings((current) => current.filter((mapping) => mapping.id !== item.id));
-            pushToast("success", "SHEIN 映射已删除");
+            pushToast("success", "平台 SKU 映射已删除");
             setConfirm(null);
           })
           .catch((error: Error) => pushToast("error", error.message));

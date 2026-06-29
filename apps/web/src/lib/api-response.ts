@@ -21,6 +21,17 @@ export function getPrismaClientStaleMessage(): string | null {
     return "登录会话字段未生效：请先停止 pnpm dev，执行 pnpm db:generate，再重新 pnpm dev。";
   }
 
+  const orderFields = Object.values(Prisma.OrderScalarFieldEnum) as string[];
+  if (!orderFields.includes("deliverBy")) {
+    return "订单签收时间字段未生效：请先 Ctrl+C 停止 pnpm dev，在 apps/web 执行 pnpm db:generate，再重新 pnpm dev。";
+  }
+  if (!orderFields.includes("platformStatus")) {
+    return "订单发货状态字段未生效：请先 Ctrl+C 停止 pnpm dev，在 apps/web 执行 pnpm exec prisma migrate deploy && pnpm db:generate，再重新 pnpm dev。";
+  }
+  if (!orderFields.includes("recipientName")) {
+    return "订单发货地址字段未生效：请先 Ctrl+C 停止 pnpm dev，在 apps/web 执行 pnpm exec prisma migrate deploy && pnpm db:generate，再重新 pnpm dev。";
+  }
+
   return null;
 }
 

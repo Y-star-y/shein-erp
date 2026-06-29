@@ -8,8 +8,8 @@ const ADMIN_PERMISSIONS: AppModule[] = [
   "storeManagement",
   "inventoryManagement",
   "orderManagement",
-  "platformMappings",
   "warehouseManagement",
+  "companyManagement",
   "userManagement",
 ];
 

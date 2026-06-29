@@ -84,6 +84,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.idNumberRevealed = false;
         token.mustChangePassword = user.mustChangePassword ?? false;
         token.sessionVersion = (user as { sessionVersion?: number }).sessionVersion ?? 0;
+        token.companyId = (user as { companyId?: string | null }).companyId ?? null;
+        token.companyName = (user as { companyName?: string | null }).companyName ?? null;
       }
       if (trigger === "update" && session) {
         if (typeof session.idNumberRevealed === "boolean") {
@@ -106,6 +108,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.idNumberRevealed = Boolean(token.idNumberRevealed);
         session.user.mustChangePassword = Boolean(token.mustChangePassword);
         session.user.sessionVersion = Number(token.sessionVersion ?? 0);
+        session.user.companyId = (token.companyId as string | null | undefined) ?? null;
+        session.user.companyName = (token.companyName as string | null | undefined) ?? null;
         if (token.email) {
           session.user.email = token.email as string;
         }

@@ -21,7 +21,7 @@ export function useNotifications(refreshKey = 0) {
     try {
       const response = await fetch("/api/notifications");
       const data = await readJsonResponse<NotificationsSummary & { error?: string }>(response);
-      if (!response.ok) {
+      if (!response.ok || !data) {
         throw new Error(data?.error ?? "加载通知失败");
       }
       setSummary(data);

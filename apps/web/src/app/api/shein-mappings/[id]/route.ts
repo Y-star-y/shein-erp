@@ -1,6 +1,8 @@
 import { auditActorId, writeAuditLog } from "@/lib/audit-log";
-import { getSessionOr401, requireModule } from "@/lib/auth-helpers";
+import { getSessionOr401 } from "@/lib/auth-helpers";
+import { canAccessMappings } from "@/lib/permissions";
 import { toPlatformSkuMapping } from "@/lib/master-data";
+import { findAccessibleInternalProductBySku } from "@/lib/internal-product-access";
 import { prisma } from "@/lib/prisma";
 import { findAccessibleMapping, resolveOrCreateStore } from "@/lib/store-access";
 import type { PlatformSkuMapping } from "@shein-erp/shared";
@@ -11,14 +13,17 @@ async function resolveRefs(session: Session, body: Partial<PlatformSkuMapping>) 
   const storeName = body.storeName?.trim();
   const internalSku = body.internalSku?.trim();
 
-  const [store, product] = await Promise.all([
+  const [store, productResult] = await Promise.all([
     storeName ? resolveOrCreateStore(session, storeName, body.platform?.trim() || "SHEIN") : Promise.resolve(null),
-    internalSku ? prisma.internalProduct.findUnique({ where: { internalSku } }) : Promise.resolve(null),
+    internalSku ? findAccessibleInternalProductBySku(session, internalSku) : Promise.resolve(null),
   ]);
 
-  if (internalSku && !product) {
-    return { error: NextResponse.json({ error: "内部商品不存在" }, { status: 400 }) };
+  if (internalSku && productResult && "error" in productResult) {
+    const status = productResult.error === "内部商品不存在" ? 400 : 403;
+    return { error: NextResponse.json({ error: productResult.error }, { status }) };
   }
+
+  const product = productResult && "product" in productResult ? productResult.product : null;
 
   return { store, product };
 }
@@ -27,8 +32,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const authResult = await getSessionOr401();
   if ("error" in authResult) return authResult.error;
 
-  const denied = requireModule(authResult.session, "platformMappings");
-  if (denied) return denied;
+  if (!canAccessMappings(authResult.session.user)) {
+    return NextResponse.json({ error: "无权访问" }, { status: 403 });
+  }
 
   const { id } = await params;
   const current = await findAccessibleMapping(authResult.session, id);
@@ -93,8 +99,9 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const authResult = await getSessionOr401();
   if ("error" in authResult) return authResult.error;
 
-  const denied = requireModule(authResult.session, "platformMappings");
-  if (denied) return denied;
+  if (!canAccessMappings(authResult.session.user)) {
+    return NextResponse.json({ error: "无权访问" }, { status: 403 });
+  }
 
   const { id } = await params;
   const existing = await findAccessibleMapping(authResult.session, id);

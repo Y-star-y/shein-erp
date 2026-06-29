@@ -2,6 +2,7 @@
 
 import { NotificationBell } from "@/components/notification-bell";
 import { useNotifications } from "@/hooks/use-notifications";
+import { CompanyManagementPage } from "@/components/admin/company-management-page";
 import { UserManagementPage } from "@/components/admin/user-management-page";
 import { StoreManagementPage } from "@/components/admin/store-management-page";
 import { WarehouseManagementPage } from "@/components/admin/warehouse-management-page";
@@ -15,35 +16,22 @@ import {
   useCompanySkuActions,
 } from "@shein-erp/company-sku";
 import { canAccessModule, firstAccessiblePage } from "@/lib/permissions";
-import {
-  MappingForm,
-  PlatformMappingPage,
-  normalizeMapping,
-  usePlatformMappingActions,
-} from "@shein-erp/platform-mapping";
-import {
-  BindForm,
-  OrderBindingPage,
-  useOrderBindingActions,
-} from "@shein-erp/order-binding";
-import {
-  AppModal,
-  ConfirmModal,
-  ErpProvider,
-  ToastHost,
-  useErpStore,
-  type PageKey,
-} from "@shein-erp/shared";
+import { OpsTodoPage } from "@/components/admin/ops-todo-page";
+import { normalizeMapping } from "@shein-erp/platform-mapping";
+import { BindForm, useOrderBindingActions } from "@shein-erp/order-binding";
+import type { OpsTodoTaskId, PageKey, SelectOption, StoreOpenTarget } from "@shein-erp/shared";
+import { AppModal, ConfirmModal, ErpProvider, ToastHost, useErpStore } from "@shein-erp/shared";
+import { readJsonResponse } from "@/lib/api-response";
 import type { AppModule } from "@prisma/client";
 import { Button, Input, Layout, Menu, Spin, Tag } from "antd";
 import {
+  Building2,
   ClipboardList,
   LogOut,
   Package,
   Plus,
   Search,
   Store,
-  Tag as TagIcon,
   User,
   UserCog,
   Warehouse,
@@ -65,8 +53,7 @@ const allMenuSections = [
       { key: "productManagement" as PageKey, title: "商品管理", icon: Package },
       { key: "storeManagement" as PageKey, title: "店铺管理", icon: Store },
       { key: "inventoryManagement" as PageKey, title: "库存管理", icon: Warehouse },
-      { key: "orderManagement" as PageKey, title: "订单管理", icon: ClipboardList },
-      { key: "platformMappings" as PageKey, title: "SHEIN映射", icon: TagIcon },
+      { key: "orderManagement" as PageKey, title: "待办任务", icon: ClipboardList },
     ],
   },
   {
@@ -75,7 +62,10 @@ const allMenuSections = [
   },
   {
     title: "系统管理",
-    items: [{ key: "userManagement" as PageKey, title: "员工管理", icon: UserCog }],
+    items: [
+      { key: "userManagement" as PageKey, title: "员工管理", icon: UserCog },
+      { key: "companyManagement" as PageKey, title: "公司管理", icon: Building2 },
+    ],
   },
 ];
 
@@ -95,15 +85,13 @@ function ErpShell() {
     toasts,
     companyQuery,
     setCompanyQuery,
-    mappingQuery,
-    setMappingQuery,
   } = useErpStore();
 
   const companyActions = useCompanySkuActions();
-  const mappingActions = usePlatformMappingActions();
   const [unmappedReloadKey, setUnmappedReloadKey] = useState(0);
   const [notificationRefreshKey, setNotificationRefreshKey] = useState(0);
-  const [orderBindingTab, setOrderBindingTab] = useState("import");
+  const [opsTodoTaskId, setOpsTodoTaskId] = useState<OpsTodoTaskId | null>(null);
+  const [storeOpenTarget, setStoreOpenTarget] = useState<StoreOpenTarget | null>(null);
   const { summary: notifications } = useNotifications(notificationRefreshKey + unmappedReloadKey);
 
   const bumpNotifications = useCallback(() => {
@@ -115,18 +103,35 @@ function ErpShell() {
     bumpNotifications();
   });
 
+  type NavigateOptions = {
+    taskId?: OpsTodoTaskId;
+    storeTarget?: StoreOpenTarget;
+  };
+
   const navigateTo = useCallback(
-    (nextPage: PageKey, tab?: string) => {
+    (nextPage: PageKey, options?: string | NavigateOptions) => {
       if (session?.user && !canAccessModule(session.user, nextPage)) {
         setPage(firstAccessiblePage(permissions));
         return;
       }
-      if (nextPage === "orderManagement" && tab) {
-        setOrderBindingTab(tab);
+      const opts = typeof options === "string" ? {} : (options ?? {});
+      if (nextPage === "orderManagement" && opts.taskId) {
+        setOpsTodoTaskId(opts.taskId);
+      }
+      if (nextPage === "storeManagement" && opts.storeTarget) {
+        setStoreOpenTarget(opts.storeTarget);
+        setOpsTodoTaskId(null);
       }
       setPage(nextPage);
     },
     [permissions, session?.user, setPage],
+  );
+
+  const openStoreFromTodo = useCallback(
+    (target: StoreOpenTarget) => {
+      navigateTo("storeManagement", { storeTarget: target });
+    },
+    [navigateTo],
   );
 
   useEffect(() => {
@@ -172,8 +177,49 @@ function ErpShell() {
     })),
   }));
 
+  const isAdmin = session?.user?.role === "ADMIN";
+  const [companySelectOptions, setCompanySelectOptions] = useState<SelectOption[]>([]);
+
+  useEffect(() => {
+    if (!isAdmin) {
+      setCompanySelectOptions([]);
+      return;
+    }
+
+    void fetch("/api/companies")
+      .then(async (response) => {
+        const data = await readJsonResponse<{ companies?: { name: string; active: boolean }[] }>(response);
+        if (!response.ok || !data?.companies) return;
+        setCompanySelectOptions(
+          data.companies
+            .filter((company) => company.active)
+            .map((company) => ({ label: company.name, value: company.name })),
+        );
+      })
+      .catch(() => setCompanySelectOptions([]));
+  }, [isAdmin]);
+
+  const productCompanyOptions = useMemo<SelectOption[]>(
+    () => companySelectOptions,
+    [companySelectOptions],
+  );
+
+  const openCreateCompanyModal = useCallback(() => {
+    companyActions.openCompanyModal("create", undefined, {
+      allowCompanyEdit: isAdmin,
+      allowEmployeeAccountEdit: isAdmin,
+      companyName: session?.user?.companyName,
+    });
+  }, [companyActions, isAdmin, session?.user?.companyName]);
+
+  const openBindModal = useCallback(
+    (group: Parameters<typeof orderBindingActions.openBindModal>[0]) => {
+      orderBindingActions.openBindModal(group);
+    },
+    [orderBindingActions],
+  );
+
   const showProductToolbar = page === "productManagement";
-  const showMappingToolbar = page === "platformMappings";
 
   if (status === "loading") {
     return (
@@ -214,26 +260,12 @@ function ErpShell() {
                 <Input
                   className="search-shell"
                   prefix={<Search size={16} />}
-                  placeholder="搜索内部商品编码、商品名、供应商"
+                  placeholder="搜索内部商品编码、公司名称、产品名称"
                   value={companyQuery}
                   onChange={(event) => setCompanyQuery(event.target.value)}
                 />
-                <Button icon={<Plus size={16} />} type="primary" onClick={() => companyActions.openCompanyModal("create")}>
+                <Button icon={<Plus size={16} />} type="primary" onClick={openCreateCompanyModal}>
                   新增商品
-                </Button>
-              </>
-            )}
-            {showMappingToolbar && (
-              <>
-                <Input
-                  className="search-shell"
-                  prefix={<Search size={16} />}
-                  placeholder="搜索 SHEIN SKC、店铺、内部商品编码"
-                  value={mappingQuery}
-                  onChange={(event) => setMappingQuery(event.target.value)}
-                />
-                <Button icon={<Plus size={16} />} type="primary" onClick={() => mappingActions.openMappingModal("create")}>
-                  新增映射
                 </Button>
               </>
             )}
@@ -262,38 +294,40 @@ function ErpShell() {
         <Layout.Content className="erp-workspace">
           {page === "productManagement" && session?.user && canAccessModule(session.user, "productManagement") && (
             <CompanySkuPage
-              onCreate={() => companyActions.openCompanyModal("create")}
+              onCreate={openCreateCompanyModal}
               onDelete={companyActions.requestCompanyDelete}
               onEdit={(item) => companyActions.openCompanyModal("edit", item)}
               onStatusChange={companyActions.requestCompanyStatusChange}
             />
           )}
           {page === "storeManagement" && session?.user && canAccessModule(session.user, "storeManagement") && (
-            <StoreManagementPage />
+            <StoreManagementPage
+              bindReloadKey={unmappedReloadKey}
+              openTarget={storeOpenTarget}
+              onBind={canAccessModule(session.user, "orderManagement") ? openBindModal : undefined}
+              onConsumeOpenTarget={() => setStoreOpenTarget(null)}
+              onImported={() => {
+                setUnmappedReloadKey((value) => value + 1);
+                bumpNotifications();
+              }}
+            />
           )}
           {page === "inventoryManagement" && session?.user && canAccessModule(session.user, "inventoryManagement") && (
             <InventoryManagementPage />
           )}
           {page === "orderManagement" && session?.user && canAccessModule(session.user, "orderManagement") && (
-            <OrderBindingPage
-              activeTab={orderBindingTab}
-              unmappedCount={notifications.unmappedCount}
+            <OpsTodoPage
+              initialTaskId={opsTodoTaskId}
               unmappedReloadKey={unmappedReloadKey}
-              onBind={orderBindingActions.openBindModal}
-              onImported={bumpNotifications}
-              onTabChange={setOrderBindingTab}
-            />
-          )}
-          {page === "platformMappings" && session?.user && canAccessModule(session.user, "platformMappings") && (
-            <PlatformMappingPage
-              onCreate={() => mappingActions.openMappingModal("create")}
-              onDelete={mappingActions.requestMappingDelete}
-              onEdit={(item) => mappingActions.openMappingModal("edit", item)}
-              onStatusChange={mappingActions.requestMappingStatusChange}
+              onConsumeInitialTask={() => setOpsTodoTaskId(null)}
+              onOpenStore={openStoreFromTodo}
             />
           )}
           {page === "warehouseManagement" && session?.user && canAccessModule(session.user, "warehouseManagement") && (
             <WarehouseManagementPage />
+          )}
+          {page === "companyManagement" && session?.user && canAccessModule(session.user, "companyManagement") && (
+            <CompanyManagementPage />
           )}
           {page === "userManagement" && session?.user && canAccessModule(session.user, "userManagement") && (
             <UserManagementPage />
@@ -305,6 +339,9 @@ function ErpShell() {
       {modal?.type === "company" && (
         <AppModal title={modal.mode === "create" ? "新增内部商品" : "编辑内部商品"} onClose={() => setModal(null)}>
           <CompanySkuForm
+            allowCompanyEdit={isAdmin}
+            allowEmployeeAccountEdit={isAdmin}
+            companyOptions={productCompanyOptions}
             errors={modal.errors}
             mode={modal.mode}
             onChange={(value) => setModal({ ...modal, value, errors: { ...modal.errors, form: "" } })}
@@ -313,21 +350,8 @@ function ErpShell() {
           />
         </AppModal>
       )}
-      {modal?.type === "mapping" && (
-        <AppModal title={modal.mode === "create" ? "新增 SHEIN SKC 映射" : "编辑 SHEIN SKC 映射"} onClose={() => setModal(null)}>
-          <MappingForm
-            activeCompanySkus={activeCompanySkus}
-            companySkus={companySkus}
-            errors={modal.errors}
-            mode={modal.mode}
-            onChange={(value) => setModal({ ...modal, value, errors: { ...modal.errors, form: "" } })}
-            onSubmit={mappingActions.saveMapping}
-            value={modal.value}
-          />
-        </AppModal>
-      )}
       {modal?.type === "orderBind" && (
-        <AppModal title="绑定 SHEIN SKC 到内部商品" onClose={() => setModal(null)}>
+        <AppModal title="绑定平台 SKU 到内部商品" onClose={() => setModal(null)}>
           <BindForm
             activeCompanySkus={activeCompanySkus}
             errors={modal.errors}

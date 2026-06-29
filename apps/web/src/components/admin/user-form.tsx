@@ -12,8 +12,15 @@ export type UserFormValues = {
   phone: string;
   email: string;
   password: string;
+  companyId: string;
   role: Exclude<Role, "ADMIN">;
   permissions: AppModule[];
+  active: boolean;
+};
+
+export type CompanyOption = {
+  id: string;
+  name: string;
   active: boolean;
 };
 
@@ -24,6 +31,8 @@ export type UserRecord = {
   idNumber: string | null;
   phone: string | null;
   email: string;
+  companyId: string | null;
+  companyName: string | null;
   role: Role;
   permissions: AppModule[];
   active: boolean;
@@ -39,6 +48,7 @@ type UserFormProps = {
   form: FormInstance<UserFormValues>;
   mode: "create" | "edit";
   initial?: UserRecord;
+  companies: CompanyOption[];
   errors?: Record<string, string>;
   onSubmit: (values: UserFormValues) => void | Promise<void>;
 };
@@ -53,13 +63,16 @@ const genderOptions = [
   { value: "FEMALE" as const, label: GENDER_LABELS.FEMALE },
 ];
 
-export function UserForm({ form, mode, initial, errors, onSubmit }: UserFormProps) {
+export function UserForm({ form, mode, initial, companies, errors, onSubmit }: UserFormProps) {
   const role = Form.useWatch("role", form) ?? (initial?.role === "ADMIN" ? "OPERATIONS" : initial?.role ?? "OPERATIONS");
   const assignableModules = ASSIGNABLE_BY_ROLE[role as Exclude<Role, "ADMIN">] ?? [];
   const defaultRole = initial?.role === "ADMIN" ? "OPERATIONS" : (initial?.role ?? "OPERATIONS");
   const defaultPermissions =
-    initial?.permissions.filter((item) => item !== "userManagement") ??
+    initial?.permissions.filter((item) => item !== "userManagement" && item !== "companyManagement") ??
     ROLE_DEFAULT_MODULES[defaultRole as Exclude<Role, "ADMIN">];
+
+  const activeCompanies = companies.filter((company) => company.active || company.id === initial?.companyId);
+  const defaultCompanyId = initial?.companyId ?? activeCompanies[0]?.id;
 
   return (
     <Form
@@ -71,6 +84,7 @@ export function UserForm({ form, mode, initial, errors, onSubmit }: UserFormProp
         phone: initial?.phone ?? "",
         email: initial?.email ?? "",
         password: "",
+        companyId: defaultCompanyId,
         role: defaultRole as Exclude<Role, "ADMIN">,
         permissions: defaultPermissions,
         active: initial?.active ?? true,
@@ -145,6 +159,15 @@ export function UserForm({ form, mode, initial, errors, onSubmit }: UserFormProp
           onChange={(nextRole: Exclude<Role, "ADMIN">) => {
             form.setFieldValue("permissions", ROLE_DEFAULT_MODULES[nextRole]);
           }}
+        />
+      </Form.Item>
+      <Form.Item label="所属公司" name="companyId" rules={[{ required: true, message: "请选择所属公司" }]}>
+        <Select
+          options={activeCompanies.map((company) => ({
+            value: company.id,
+            label: company.active ? company.name : `${company.name}（已停用）`,
+          }))}
+          placeholder="请选择公司"
         />
       </Form.Item>
       <Form.Item

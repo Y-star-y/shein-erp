@@ -7,7 +7,8 @@ import { Button, Form, Space, Table, Tag } from "antd";
 import { Plus } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { AuditLogPanel } from "./audit-log-panel";
-import { UserForm, type UserFormValues, type UserRecord } from "./user-form";
+import { StoreTransferModal } from "./store-transfer-modal";
+import { UserForm, type CompanyOption, type UserFormValues, type UserRecord } from "./user-form";
 
 type ModalState = {
   mode: "create" | "edit";
@@ -17,10 +18,12 @@ type ModalState = {
 
 function UserFormModal({
   modal,
+  companies,
   onClose,
   onSubmit,
 }: {
   modal: ModalState;
+  companies: CompanyOption[];
   onClose: () => void;
   onSubmit: (values: UserFormValues) => void | Promise<void>;
 }) {
@@ -28,7 +31,14 @@ function UserFormModal({
 
   return (
     <AppModal title={modal.mode === "create" ? "新增员工" : "编辑员工"} onClose={onClose}>
-      <UserForm form={form} mode={modal.mode} initial={modal.user} errors={modal.errors} onSubmit={onSubmit} />
+      <UserForm
+        form={form}
+        mode={modal.mode}
+        initial={modal.user}
+        companies={companies}
+        errors={modal.errors}
+        onSubmit={onSubmit}
+      />
       <div className="modal-actions" style={{ marginTop: 16 }}>
         <Button onClick={onClose}>取消</Button>
         <Button type="primary" onClick={() => form.submit()}>
@@ -42,10 +52,25 @@ function UserFormModal({
 export function UserManagementPage() {
   const { pushToast } = useErpStore();
   const [users, setUsers] = useState<UserRecord[]>([]);
+  const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [auditRefreshKey, setAuditRefreshKey] = useState(0);
   const [modal, setModal] = useState<ModalState | null>(null);
   const [confirm, setConfirm] = useState<{ user: UserRecord } | null>(null);
+  const [transferUser, setTransferUser] = useState<UserRecord | null>(null);
+
+  const loadCompanies = useCallback(async () => {
+    try {
+      const response = await fetch("/api/companies");
+      const data = await readJsonResponse<{ companies?: CompanyOption[]; error?: string }>(response);
+      if (!response.ok) {
+        throw new Error(data?.error ?? "加载公司列表失败");
+      }
+      setCompanies(data?.companies ?? []);
+    } catch (error) {
+      pushToast("error", error instanceof Error ? error.message : "加载公司列表失败");
+    }
+  }, [pushToast]);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -64,8 +89,9 @@ export function UserManagementPage() {
   }, [pushToast]);
 
   useEffect(() => {
+    void loadCompanies();
     void loadUsers();
-  }, [loadUsers]);
+  }, [loadCompanies, loadUsers]);
 
   function refreshAuditLogs() {
     setAuditRefreshKey((key) => key + 1);
@@ -82,6 +108,7 @@ export function UserManagementPage() {
             gender: values.gender ?? null,
             idNumber: values.idNumber,
             phone: values.phone,
+            companyId: values.companyId,
             role: values.role,
             permissions: values.permissions,
             active: values.active,
@@ -151,7 +178,12 @@ export function UserManagementPage() {
         title="员工账户"
         count={users.length}
         action={
-          <Button icon={<Plus size={16} />} type="primary" onClick={() => setModal({ mode: "create", errors: {} })}>
+          <Button
+            icon={<Plus size={16} />}
+            type="primary"
+            disabled={companies.length === 0}
+            onClick={() => setModal({ mode: "create", errors: {} })}
+          >
             新增员工
           </Button>
         }
@@ -182,6 +214,12 @@ export function UserManagementPage() {
               render: (value: string | null) => value ?? "—",
             },
             { title: "邮箱", dataIndex: "email", key: "email" },
+            {
+              title: "所属公司",
+              dataIndex: "companyName",
+              key: "companyName",
+              render: (value: string | null) => value ?? "—",
+            },
             {
               title: "部门",
               dataIndex: "role",
@@ -224,6 +262,9 @@ export function UserManagementPage() {
                       解除锁定
                     </Button>
                   ) : null}
+                  <Button size="small" onClick={() => setTransferUser(user)} title="整账号过户全部店铺及关联商品">
+                    账号过户
+                  </Button>
                   <Button danger size="small" onClick={() => setConfirm({ user })}>
                     删除
                   </Button>
@@ -236,7 +277,20 @@ export function UserManagementPage() {
 
       <AuditLogPanel refreshKey={auditRefreshKey} />
 
-      {modal ? <UserFormModal modal={modal} onClose={() => setModal(null)} onSubmit={saveUser} /> : null}
+      {modal ? (
+        <UserFormModal modal={modal} companies={companies} onClose={() => setModal(null)} onSubmit={saveUser} />
+      ) : null}
+
+      {transferUser ? (
+        <StoreTransferModal
+          user={transferUser}
+          users={users}
+          onClose={() => setTransferUser(null)}
+          onSuccess={() => {
+            refreshAuditLogs();
+          }}
+        />
+      ) : null}
 
       <ConfirmModal
         confirm={

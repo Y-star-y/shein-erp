@@ -5,6 +5,8 @@ import {
   Button,
   FormSection,
   TextField,
+  getProductAttributeString,
+  getProductDisplayName,
   mappingStatusOptions,
   platformOptions,
   type CompanySku,
@@ -34,14 +36,16 @@ export function MappingForm({
 }) {
   const selectedCompanySku = companySkus.find((item) => item.internalSku === value.internalSku);
   const companyOptions: SelectOption[] = activeCompanySkus.map((item) => ({
-    label: `${item.internalSku} / ${item.productNameCn}`,
+    label: `${item.internalSku} / ${getProductDisplayName(item)}`,
     value: item.internalSku,
-    description: [item.productGroupName, item.color, item.size].filter(Boolean).join(" / ") || undefined,
+    description: [item.companyName, getProductAttributeString(item.attributes, "颜色"), getProductAttributeString(item.attributes, "尺码")]
+      .filter(Boolean)
+      .join(" / ") || undefined,
   }));
 
   if (mode === "edit" && selectedCompanySku && selectedCompanySku.status === "inactive") {
     companyOptions.unshift({
-      label: `${selectedCompanySku.internalSku} / ${selectedCompanySku.productNameCn}（已停用）`,
+      label: `${selectedCompanySku.internalSku} / ${getProductDisplayName(selectedCompanySku)}（已停用）`,
       value: selectedCompanySku.internalSku,
       description: "已有映射可保留该值，但不建议继续使用停用商品。",
       disabled: true,
@@ -64,8 +68,15 @@ export function MappingForm({
         />
         <TextField error={errors.storeName} label="店铺" required value={value.storeName} onChange={(fieldValue) => setField("storeName", fieldValue)} />
         <TextField
+          error={errors.platformSku}
+          label="平台 SKU（唯一匹配键）"
+          value={value.platformSku}
+          onChange={(fieldValue) => setField("platformSku", fieldValue)}
+        />
+        <TextField error={errors.sellerSku} label="卖家 SKU（唯一匹配键）" value={value.sellerSku} onChange={(fieldValue) => setField("sellerSku", fieldValue)} />
+        <TextField
           error={errors.platformSkc}
-          label="平台 SKC（款式/颜色，可重复）"
+          label="平台 SKC（款式/颜色参考，不唯一）"
           value={value.platformSkc}
           onChange={(fieldValue) => setField("platformSkc", fieldValue)}
         />
@@ -78,11 +89,9 @@ export function MappingForm({
           value={value.internalSku}
         />
       </FormSection>
-      <FormSection title="平台字段">
+      <FormSection title="其他平台字段">
         <TextField label="SHEIN 商品 ID" value={value.sheinProductId} onChange={(fieldValue) => setField("sheinProductId", fieldValue)} />
         <TextField label="平台 SPU" value={value.platformSpu} onChange={(fieldValue) => setField("platformSpu", fieldValue)} />
-        <TextField error={errors.platformSku} label="平台 SKU" value={value.platformSku} onChange={(fieldValue) => setField("platformSku", fieldValue)} />
-        <TextField error={errors.sellerSku} label="卖家 SKU" value={value.sellerSku} onChange={(fieldValue) => setField("sellerSku", fieldValue)} />
         <TextField label="SHEIN 商品名称" value={value.sheinProductName} onChange={(fieldValue) => setField("sheinProductName", fieldValue)} />
       </FormSection>
       <FormSection title="状态与备注">
@@ -96,7 +105,11 @@ export function MappingForm({
         <TextField label="备注" multiline value={value.remark} onChange={(fieldValue) => setField("remark", fieldValue)} />
       </FormSection>
       <div className="modal-actions">
-        <span>{mode === "create" ? "一个 SHEIN SKC 只能绑定一个内部商品。" : `创建时间：${value.createdAt}`}</span>
+        <span>
+          {mode === "create"
+            ? "平台 SKU / 卖家 SKU 为全局唯一匹配键；平台 SKC 不唯一，仅作参考。"
+            : `创建时间：${value.createdAt}`}
+        </span>
         <Button htmlType="submit" type="primary">保存</Button>
       </div>
     </form>

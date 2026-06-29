@@ -5,6 +5,7 @@ import {
   EmptyBlock,
   PageHeader,
   StatusTag,
+  getProductDisplayName,
   includesQuery,
   statusOptions,
   statusText,
@@ -16,7 +17,7 @@ import {
 import { Button, Input, Space, Table, Tag } from "antd";
 import { Package, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useMemo } from "react";
-import { countMappingsForSku } from "./model";
+import { companySkuSearchText, countMappingsForSku } from "./model";
 
 export function CompanySkuPage({
   onCreate,
@@ -41,13 +42,8 @@ export function CompanySkuPage({
   const filteredCompanySkus = useMemo(() => {
     return companySkus.filter((item) => {
       const statusMatched = companyStatusFilter === "all" || item.status === companyStatusFilter;
-      return (
-        statusMatched &&
-        includesQuery(
-          [item.internalSku, item.productGroupName, item.productNameCn, item.specification, item.color, item.size, item.model, item.supplierUrl],
-          companyQuery,
-        )
-      );
+      if (!statusMatched) return false;
+      return includesQuery([companySkuSearchText(item)], companyQuery);
     });
   }, [companyQuery, companySkus, companyStatusFilter]);
 
@@ -56,32 +52,42 @@ export function CompanySkuPage({
       {
         title: "内部商品编码",
         dataIndex: "internalSku",
-        render: (value: string) => <strong title={value}>{value}</strong>,
+        width: 220,
+        ellipsis: true,
+        render: (value: string) => <strong>{value}</strong>,
       },
-      { title: "商品组/款式", dataIndex: "productGroupName", render: (value: string) => <span title={value}>{value || "-"}</span> },
-      { title: "商品名称", dataIndex: "productNameCn", render: (value: string) => <span title={value}>{value}</span> },
-      { title: "规格", dataIndex: "specification", render: (value: string) => <span title={value}>{value || "-"}</span> },
-      { title: "颜色", dataIndex: "color", render: (value: string) => value || "-" },
-      { title: "尺码", dataIndex: "size", render: (value: string) => value || "-" },
-      { title: "型号", dataIndex: "model", render: (value: string) => value || "-" },
-      { title: "供应商", dataIndex: "supplierUrl", render: (value: string) => <span title={value}>{value || "-"}</span> },
-      { title: "预警", dataIndex: "defaultWarningQuantity", render: (value: string) => value || "-" },
       {
-        title: "SKC映射数",
+        title: "公司名称",
+        dataIndex: "companyName",
+        width: 140,
+        ellipsis: true,
+        render: (value: string) => value || "-",
+      },
+      {
+        title: "产品名称",
+        key: "productName",
+        width: 180,
+        ellipsis: true,
+        render: (_: unknown, item: CompanySku) => getProductDisplayName(item),
+      },
+      {
+        title: "映射数",
         key: "mappingCount",
+        width: 90,
         render: (_: unknown, item: CompanySku) => countMappingsForSku(item.internalSku, mappings),
       },
       {
         title: "状态",
         dataIndex: "status",
+        width: 80,
         render: (value: CompanySkuStatus) => <StatusTag value={statusText(value)} tone={statusTone(value)} />,
       },
-      { title: "更新时间", dataIndex: "updatedAt" },
       {
         title: "操作",
         key: "actions",
         fixed: "right" as const,
         width: 210,
+        className: "table-cell-interactive",
         render: (_: unknown, item: CompanySku) => (
           <CompanySkuActions item={item} onDelete={onDelete} onEdit={onEdit} onStatusChange={onStatusChange} />
         ),
@@ -98,7 +104,7 @@ export function CompanySkuPage({
             新增内部商品
           </Button>
         }
-        description="内部商品是真实可发货的商品，SHEIN SKC 按店铺映射到这里。库存、采购、借货都以内部商品为准。"
+        description="内部商品是真实可发货的商品。各店铺订单通过平台 SKU / 卖家 SKU 映射到这里，库存、采购、借货都以内部商品为准。"
         title="内部商品"
       />
 
@@ -107,7 +113,7 @@ export function CompanySkuPage({
           <Input
             className="table-search"
             prefix={<Search size={15} />}
-            placeholder="搜索内部商品编码、款式、商品名、尺码、颜色、供应商"
+            placeholder="搜索内部商品编码、公司名称、产品名称"
             value={companyQuery}
             onChange={(event) => setCompanyQuery(event.target.value)}
           />
@@ -122,11 +128,12 @@ export function CompanySkuPage({
         <Table
           columns={columns}
           dataSource={filteredCompanySkus}
-          locale={{ emptyText: <EmptyBlock icon={<Package size={22} />} title="暂无内部商品" text="先新增内部商品，再绑定各店铺返回的 SHEIN SKC。" /> }}
+          locale={{ emptyText: <EmptyBlock icon={<Package size={22} />} title="暂无内部商品" text="先新增内部商品，再按平台 SKU 绑定各店铺订单。" /> }}
           pagination={false}
           rowKey="id"
-          scroll={{ x: 1480 }}
+          scroll={{ x: 980 }}
           size="middle"
+          tableLayout="fixed"
         />
       </section>
     </div>

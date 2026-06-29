@@ -4,7 +4,8 @@ import type { InventorySnapshot, Order, ParsedSheinOrderLine, SheinOrderMappingR
 const aliases: Record<string, string[]> = {
   orderNo: ["GSP订单号", "订单号"],
   createdAt: ["订单创建时间"],
-  shipBy: ["要求签收时间", "要求发货时间"],
+  shipBy: ["要求发货时间", "最晚发货时间"],
+  deliverBy: ["要求签收时间"],
   sellerSku: ["卖家SKU"],
   platformSku: ["平台SKU"],
   platformSkc: ["平台SKC", "平台skc", "平台Skc"],
@@ -17,6 +18,13 @@ const aliases: Record<string, string[]> = {
   warehouse: ["仓库"],
   storeName: ["店铺名称", "店铺名", "店铺"],
   quantity: ["数量", "商品数量", "购买数量", "订单数量"],
+  processingStatus: ["可筛选-处理状态（待打包/已...）", "处理状态", "订单状态"],
+  logisticsNo: ["物流单号", "运单号", "国际物流单号"],
+  logisticsCompany: ["物流公司", "承运商"],
+  recipientName: ["收件人姓名", "用户名称", "收货人", "收货人姓名", "用户姓名"],
+  recipientPhone: ["收件人电话", "手机号", "手机号码", "电话", "用户电话"],
+  recipientAddress: ["收件人地址（一二三）", "收件人地址", "用户地址", "详细地址", "地址"],
+  recipientPostalCode: ["收件人邮编", "邮编", "邮政编码", "postcode", "zip"],
 };
 
 function value(row: Record<string, unknown>, key: string) {
@@ -47,6 +55,7 @@ export async function parseSheinExcel(file: File): Promise<Omit<Order, "skuCode"
       orderNo: String(value(row, "orderNo")).trim(),
       createdAt: String(value(row, "createdAt") || ""),
       shipBy: String(value(row, "shipBy") || ""),
+      deliverBy: String(value(row, "deliverBy") || ""),
       sellerSku: String(value(row, "sellerSku") || "").trim(),
       productName: String(value(row, "productName") || ""),
       spec: String(value(row, "spec") || ""),
@@ -90,7 +99,8 @@ const sheinColumnAliases = {
   recipientPostalCode: ["收件人邮编", "邮编", "邮政编码", "postcode", "zip"],
   productName: ["商品名称", "产品名称", "商品品名"],
   orderCreatedAt: ["订单创建时间", "创建时间", "下单时间"],
-  shipBy: ["要求签收时间", "要求发货时间", "最晚发货时间"],
+  shipBy: ["要求发货时间", "最晚发货时间"],
+  deliverBy: ["要求签收时间"],
   warehouseName: ["仓库名称", "仓库"],
   shippingChannel: ["发货渠道（投函/小包）", "发货渠道", "物流渠道"],
   processingStatus: ["可筛选-处理状态（待打包/已...）", "处理状态", "订单状态"],
@@ -130,6 +140,29 @@ function readByAliases(headers: string[], row: unknown[], candidates: string[]) 
 
 function joinCells(values: string[]) {
   return values.filter(Boolean).join(" ");
+}
+
+function readRecipientFields(headers: string[], row: unknown[]) {
+  const recipientName =
+    readByAliases(headers, row, sheinColumnAliases.recipientName) ||
+    joinCells([
+      readByAliases(headers, row, sheinColumnAliases.recipientLastName),
+      readByAliases(headers, row, sheinColumnAliases.recipientFirstName),
+    ]);
+  const recipientAddress =
+    readByAliases(headers, row, sheinColumnAliases.recipientAddress) ||
+    joinCells([
+      readByAliases(headers, row, sheinColumnAliases.recipientAddress1),
+      readByAliases(headers, row, sheinColumnAliases.recipientAddress2),
+      readByAliases(headers, row, sheinColumnAliases.recipientAddress3),
+    ]);
+
+  return {
+    recipientName,
+    recipientPhone: readByAliases(headers, row, sheinColumnAliases.recipientPhone),
+    recipientAddress,
+    recipientPostalCode: readByAliases(headers, row, sheinColumnAliases.recipientPostalCode),
+  };
 }
 
 function sheetMatrix(sheet: XLSX.WorkSheet) {
@@ -187,6 +220,7 @@ export async function parseSheinOrderImportExcel(file: File): Promise<ParsedShei
       orderNo: String(value(row, "orderNo")).trim(),
       createdAt: String(value(row, "createdAt") || ""),
       shipBy: String(value(row, "shipBy") || ""),
+      deliverBy: String(value(row, "deliverBy") || ""),
       sellerSku: String(value(row, "sellerSku") || "").trim(),
       platformSku: String(value(row, "platformSku") || "").trim(),
       platformSkc: String(value(row, "platformSkc") || "").trim(),
@@ -199,6 +233,13 @@ export async function parseSheinOrderImportExcel(file: File): Promise<ParsedShei
       country: String(value(row, "country") || ""),
       storeName: String(value(row, "storeName") || "").trim(),
       warehouse: String(value(row, "warehouse") || "").trim(),
+      processingStatus: String(value(row, "processingStatus") || "").trim(),
+      logisticsNo: String(value(row, "logisticsNo") || "").trim(),
+      logisticsCompany: String(value(row, "logisticsCompany") || "").trim(),
+      recipientName: String(value(row, "recipientName") || "").trim(),
+      recipientPhone: String(value(row, "recipientPhone") || "").trim(),
+      recipientAddress: String(value(row, "recipientAddress") || "").trim(),
+      recipientPostalCode: String(value(row, "recipientPostalCode") || "").trim(),
     }))
     .filter((row) => row.orderNo && (row.sellerSku || row.platformSku));
 }
@@ -229,11 +270,13 @@ function parseSheinOrderImportFromMatrix(rows: unknown[][]): ParsedSheinOrderLin
       const platformSkc = readCell(row, platformSkcIndex);
       const platformSpu = readCell(row, platformSpuIndex);
       const quantityText = readByAliases(headers, row, sheinColumnAliases.quantity) || "1";
+      const recipient = readRecipientFields(headers, row);
 
       return {
         orderNo: readByAliases(headers, row, sheinColumnAliases.orderNo),
         createdAt: readByAliases(headers, row, sheinColumnAliases.orderCreatedAt),
         shipBy: readByAliases(headers, row, sheinColumnAliases.shipBy),
+        deliverBy: readByAliases(headers, row, sheinColumnAliases.deliverBy),
         sellerSku,
         platformSku,
         platformSkc,
@@ -246,6 +289,10 @@ function parseSheinOrderImportFromMatrix(rows: unknown[][]): ParsedSheinOrderLin
         country: "",
         storeName: readByAliases(headers, row, sheinColumnAliases.storeName),
         warehouse: readByAliases(headers, row, sheinColumnAliases.warehouseName),
+        processingStatus: readByAliases(headers, row, sheinColumnAliases.processingStatus),
+        logisticsNo: readByAliases(headers, row, sheinColumnAliases.logisticsNo),
+        logisticsCompany: readByAliases(headers, row, sheinColumnAliases.logisticsCompany),
+        ...recipient,
       };
     })
     .filter((row) => row.orderNo && (row.sellerSku || row.platformSku));

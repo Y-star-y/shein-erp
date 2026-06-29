@@ -36,6 +36,21 @@ export function validateEmail(email: string | null | undefined) {
   return null;
 }
 
+export function normalizeIdNumber(value?: string | null) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed.toUpperCase() : null;
+}
+
+export function validateIdNumber(idNumber: string | null | undefined) {
+  if (!idNumber) {
+    return "证件号不能为空";
+  }
+  if (!/^\d{15}$|^\d{17}[\dXx]$/.test(idNumber)) {
+    return "证件号码格式不正确";
+  }
+  return null;
+}
+
 export async function verifyUserPassword(userId: string, password: string) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user?.passwordHash) {

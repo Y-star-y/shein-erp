@@ -1,6 +1,6 @@
 "use client";
 
-import type { AppNotification, NotificationsSummary, PageKey } from "@shein-erp/shared";
+import type { AppNotification, NotificationsSummary, OpsTodoTaskId, PageKey, StoreOpenTarget } from "@shein-erp/shared";
 import { Badge, Button, Dropdown, Empty, Spin } from "antd";
 import { Bell, ClipboardList, Link2 } from "lucide-react";
 import { useState } from "react";
@@ -13,7 +13,7 @@ const TYPE_ICONS = {
 type NotificationBellProps = {
   summary: NotificationsSummary;
   loading?: boolean;
-  onNavigate: (page: PageKey, tab?: string) => void;
+  onNavigate: (page: PageKey, options?: { taskId?: OpsTodoTaskId; storeTarget?: StoreOpenTarget }) => void;
 };
 
 export function NotificationBell({ summary, loading = false, onNavigate }: NotificationBellProps) {
@@ -21,7 +21,15 @@ export function NotificationBell({ summary, loading = false, onNavigate }: Notif
 
   function handleSelect(item: AppNotification) {
     setOpen(false);
-    onNavigate(item.page, item.tab);
+    if (item.storeTarget) {
+      onNavigate("storeManagement", { storeTarget: item.storeTarget });
+      return;
+    }
+    if (item.page === "storeManagement") {
+      onNavigate("storeManagement");
+      return;
+    }
+    onNavigate(item.page, { taskId: item.taskId });
   }
 
   const dropdownContent = (

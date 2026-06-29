@@ -6,6 +6,20 @@ import bcrypt from "bcryptjs";
 import { createHmac, timingSafeEqual } from "crypto";
 import type { User } from "@prisma/client";
 
+function toAuthUserPayload(user: User & { company?: { id: string; name: string } | null }): AuthUserPayload {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    permissions: resolveUserPermissions(user.role, user.permissions ?? []),
+    mustChangePassword: user.mustChangePassword,
+    sessionVersion: user.sessionVersion,
+    companyId: user.companyId ?? user.company?.id ?? null,
+    companyName: user.company?.name ?? null,
+  };
+}
+
 export const LOGIN_CAPTCHA_COOKIE = "login_captcha_required";
 export const MAX_FAILURES_PER_HOUR = 3;
 export const CAPTCHA_THRESHOLD = 1;
@@ -20,6 +34,8 @@ export type AuthUserPayload = {
   permissions: import("@prisma/client").AppModule[];
   mustChangePassword: boolean;
   sessionVersion: number;
+  companyId: string | null;
+  companyName: string | null;
 };
 
 export type LoginErrorCode =
@@ -128,13 +144,19 @@ export async function authorizeCredentials(
 ): Promise<AuthorizeResult> {
   const hasCookie = options?.hasCookie ?? false;
   const bypass = verifyLoginBypass(email, options?.loginBypass);
-  let user = await prisma.user.findUnique({ where: { email } });
+  let user = await prisma.user.findUnique({
+    where: { email },
+    include: { company: { select: { id: true, name: true } } },
+  });
 
   if (user?.loginFailureWindowStart && !isLoginLocked(user)) {
     const windowExpired = Date.now() - user.loginFailureWindowStart.getTime() >= FAILURE_WINDOW_MS;
     if (windowExpired && (user.failedLoginAttempts > 0 || user.lockedUntil)) {
       await clearLoginLock(user.id);
-      user = await prisma.user.findUnique({ where: { email } });
+      user = await prisma.user.findUnique({
+        where: { email },
+        include: { company: { select: { id: true, name: true } } },
+      });
     }
   }
 
@@ -251,15 +273,7 @@ export async function authorizeCredentials(
 
   return {
     ok: true,
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      permissions: resolveUserPermissions(user.role, user.permissions ?? []),
-      mustChangePassword: user.mustChangePassword,
-      sessionVersion: user.sessionVersion,
-    },
+    user: toAuthUserPayload(user),
   };
 }
 
@@ -293,16 +307,11 @@ export async function getLoginStatusForEmail(email: string, hasCookie: boolean) 
 }
 
 export async function buildAuthUserFromEmail(email: string): Promise<AuthUserPayload | null> {
-  const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+  const user = await prisma.user.findUnique({
+    where: { email: email.toLowerCase() },
+    include: { company: { select: { id: true, name: true } } },
+  });
   if (!user || !user.active) return null;
 
-  return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    permissions: resolveUserPermissions(user.role, user.permissions ?? []),
-    mustChangePassword: user.mustChangePassword,
-    sessionVersion: user.sessionVersion,
-  };
+  return toAuthUserPayload(user);
 }

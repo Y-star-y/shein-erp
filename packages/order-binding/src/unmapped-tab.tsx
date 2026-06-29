@@ -22,9 +22,13 @@ function formatOrderDateTime(value: string | null | undefined) {
 export function UnmappedTab({
   onBind,
   reloadKey = 0,
+  storeId,
+  compact = false,
 }: {
-  onBind: (group: UnmappedOrderLine) => void;
+  onBind?: (group: UnmappedOrderLine) => void;
   reloadKey?: number;
+  storeId?: string;
+  compact?: boolean;
 }) {
   const [items, setItems] = useState<UnmappedOrderLine[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +37,8 @@ export function UnmappedTab({
   const loadItems = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/orders/unmapped");
+      const url = storeId ? `/api/orders/unmapped?storeId=${encodeURIComponent(storeId)}` : "/api/orders/unmapped";
+      const response = await fetch(url);
       if (!response.ok) {
         throw new Error("加载失败");
       }
@@ -44,7 +49,7 @@ export function UnmappedTab({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [storeId]);
 
   useEffect(() => {
     void loadItems();
@@ -53,7 +58,7 @@ export function UnmappedTab({
   const filteredItems = useMemo(() => {
     return items.filter((item) =>
       includesQuery(
-        [item.orderNo, item.sellerSku, item.sheinProductName, item.storeName],
+        [item.orderNo, item.platformSku, item.sellerSku, item.sheinProductName, item.storeName],
         query,
       ),
     );
@@ -74,71 +79,86 @@ export function UnmappedTab({
         render: (value: string | null) => formatOrderDateTime(value),
       },
       {
-        title: "要求签收时间",
+        title: "要求发货",
         dataIndex: "shipBy",
         width: 168,
         render: (value: string | null) => formatOrderDateTime(value),
       },
+      {
+        title: "要求签收",
+        dataIndex: "deliverBy",
+        width: 168,
+        render: (value: string | null) => formatOrderDateTime(value),
+      },
+      { title: "平台 SKU", dataIndex: "platformSku", width: 140, render: (value: string) => value || "—" },
       { title: "卖家 SKU", dataIndex: "sellerSku", width: 140, render: (value: string) => value || "—" },
       { title: "SHEIN 商品名", dataIndex: "sheinProductName", ellipsis: true },
-      { title: "店铺", dataIndex: "storeName", width: 120, render: (value: string) => value || "—" },
-      {
-        title: "操作",
-        key: "actions",
-        width: 100,
-        fixed: "right" as const,
-        render: (_: unknown, item: UnmappedOrderLine) => (
-          <Button icon={<Link2 size={14} />} size="small" type="link" onClick={() => onBind(item)}>
-            绑定商品
-          </Button>
-        ),
-      },
+      ...(storeId
+        ? []
+        : [{ title: "店铺", dataIndex: "storeName", width: 120, render: (value: string) => value || "—" }]),
+      ...(onBind
+        ? [
+            {
+              title: "操作",
+              key: "actions",
+              width: 100,
+              fixed: "right" as const,
+              render: (_: unknown, item: UnmappedOrderLine) => (
+                <Button icon={<Link2 size={14} />} size="small" type="link" onClick={() => onBind(item)}>
+                  绑定商品
+                </Button>
+              ),
+            },
+          ]
+        : []),
     ],
-    [onBind],
+    [onBind, storeId],
   );
+
+  const tableSection = (
+    <section className="table-panel">
+      <div className="table-toolbar">
+        <Input
+          className="table-search"
+          prefix={<Search size={15} />}
+          placeholder={storeId ? "搜索 GSP 订单、平台 SKU、卖家 SKU、商品名" : "搜索 GSP 订单、平台 SKU、卖家 SKU、商品名、店铺"}
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
+        <Tag className="count-pill">{filteredItems.length}/{items.length}</Tag>
+      </div>
+      <Table
+        columns={columns}
+        dataSource={filteredItems}
+        loading={loading}
+        locale={{
+          emptyText: (
+            <EmptyBlock
+              icon={<TagIcon size={22} />}
+              text="导入 SHEIN 订单后，未匹配的平台 SKU 会出现在这里。"
+              title="暂无待绑定商品"
+            />
+          ),
+        }}
+        pagination={{ pageSize: 20, showSizeChanger: true }}
+        rowKey="lineId"
+        scroll={{ x: storeId ? 1140 : 1260 }}
+        size="middle"
+      />
+    </section>
+  );
+
+  if (compact) {
+    return <div className="page-stack">{tableSection}</div>;
+  }
 
   return (
     <div className="page-stack">
       <PageHeader
-        action={
-          <Button onClick={() => void loadItems()} loading={loading}>
-            刷新
-          </Button>
-        }
-        description="以下商品来自订单导入且尚未绑定内部商品，按订单明细展示。"
+        description="以下商品来自订单导入且尚未绑定内部商品。匹配键为平台 SKU / 卖家 SKU，按订单明细展示。"
         title="待绑定商品"
       />
-
-      <section className="table-panel">
-        <div className="table-toolbar">
-          <Input
-            className="table-search"
-            prefix={<Search size={15} />}
-            placeholder="搜索 GSP 订单、卖家 SKU、商品名、店铺"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-          <Tag className="count-pill">{filteredItems.length}/{items.length}</Tag>
-        </div>
-        <Table
-          columns={columns}
-          dataSource={filteredItems}
-          loading={loading}
-          locale={{
-            emptyText: (
-              <EmptyBlock
-                icon={<TagIcon size={22} />}
-                text="导入 SHEIN 订单后，未匹配的商品会出现在这里。"
-                title="暂无待绑定商品"
-              />
-            ),
-          }}
-          pagination={{ pageSize: 20, showSizeChanger: true }}
-          rowKey="lineId"
-          scroll={{ x: 1100 }}
-          size="middle"
-        />
-      </section>
+      {tableSection}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import {
   EmptyBlock,
   Panel,
   StatusTag,
+  getProductDisplayName,
   useErpStore,
   type PageKey,
 } from "@shein-erp/shared";
@@ -63,7 +64,7 @@ export function OpsConsolePage({
           <span className="eyebrow">运营工作台</span>
           <h2>先把商品映射基础资料打稳</h2>
           <p>
-            内部商品是真实库存商品；SHEIN SKC 是各店铺上架后返回的平台身份，需要映射回内部商品。
+            内部商品是真实库存商品；订单匹配与映射以平台 SKU / 卖家 SKU 为唯一键，平台 SKC 仅作款式/颜色参考。
           </p>
         </div>
         {(canCreateCompanySku || canCreateMapping) && (
@@ -103,7 +104,7 @@ export function OpsConsolePage({
                 <Button className="mini-row" key={item.id} onClick={() => onJump("productManagement")}>
                   <span>
                     <strong>{item.internalSku}</strong>
-                    <em>{item.productNameCn}</em>
+                    <em>{getProductDisplayName(item)}</em>
                   </span>
                   <StatusTag value="待完善" tone="warning" />
                 </Button>

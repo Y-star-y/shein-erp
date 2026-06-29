@@ -142,7 +142,7 @@ export function AuditLogPanel({ refreshKey = 0 }: AuditLogPanelProps) {
                       >
                         <div className="audit-log-item__head">
                           <Tag
-                            bordered={false}
+                            variant="filled"
                             className="audit-log-item__tag"
                             style={{ color: style.accent, background: "#fff" }}
                           >

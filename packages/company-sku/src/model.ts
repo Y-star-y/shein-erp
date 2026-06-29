@@ -1,27 +1,75 @@
 import type { CompanySku } from "@shein-erp/shared";
-import { nowText } from "@shein-erp/shared";
+import {
+  generateClientInternalSku,
+  getDefaultProductAttributes,
+  getEditableProductAttributes,
+  getEmployeeAccountAttribute,
+  getProductAttributeString,
+  getProductNameAttribute,
+  mergeStoredTopLevelAttributes,
+  nowText,
+  productAttributesToSearchText,
+  validateProductAttributes,
+} from "@shein-erp/shared";
 
 type LegacyCompanySku = Partial<CompanySku> & {
   platformSkc?: string;
+  productGroupName?: string;
+  productNameCn?: string;
+  specification?: string;
+  color?: string;
+  size?: string;
+  model?: string;
+  imageUrl?: string;
+  supplierUrl?: string;
 };
 
-export function createCompanySku(): CompanySku {
+function legacyAttributesFromItem(item: LegacyCompanySku) {
+  const attributes = [];
+
+  if (item.productNameCn?.trim()) {
+    attributes.push({ key: "产品名称", type: "text" as const, value: item.productNameCn.trim() });
+  }
+  if (item.productGroupName?.trim()) {
+    attributes.push({ key: "商品组/款式", type: "text" as const, value: item.productGroupName.trim() });
+  }
+  if (item.specification?.trim()) {
+    attributes.push({ key: "规格", type: "text" as const, value: item.specification.trim() });
+  }
+  if (item.color?.trim()) {
+    attributes.push({ key: "颜色", type: "text" as const, value: item.color.trim() });
+  }
+  if (item.size?.trim()) {
+    attributes.push({ key: "尺码", type: "text" as const, value: item.size.trim() });
+  }
+  if (item.model?.trim()) {
+    attributes.push({ key: "型号", type: "text" as const, value: item.model.trim() });
+  }
+  if (item.imageUrl?.trim()) {
+    attributes.push({ key: "图片 URL", type: "text" as const, value: item.imageUrl.trim() });
+  }
+  if (item.supplierUrl?.trim()) {
+    attributes.push({ key: "供应商链接", type: "text" as const, value: item.supplierUrl.trim() });
+  }
+
+  return attributes;
+}
+
+export function createCompanySku(options?: {
+  internalSku?: string;
+  companyName?: string;
+  employeeAccount?: string;
+}): CompanySku {
   const now = nowText();
 
   return {
     id: `company-sku-${Date.now()}`,
-    internalSku: "",
-    productGroupName: "",
-    productNameCn: "",
+    internalSku: options?.internalSku ?? generateClientInternalSku(),
+    companyName: options?.companyName ?? "",
+    attributes: mergeStoredTopLevelAttributes(getDefaultProductAttributes(), {
+      employeeAccount: options?.employeeAccount ?? "",
+    }),
     status: "active",
-    specification: "",
-    color: "",
-    size: "",
-    model: "",
-    imageUrl: "",
-    supplierUrl: "",
-    defaultWarningQuantity: "",
-    source: "manual",
     createdAt: now,
     updatedAt: now,
   };
@@ -29,11 +77,18 @@ export function createCompanySku(): CompanySku {
 
 export function normalizeCompanySku(item: LegacyCompanySku): CompanySku {
   const now = nowText();
+  const legacyAttributes = legacyAttributesFromItem(item);
   const normalized = {
     ...createCompanySku(),
     ...item,
     internalSku: item.internalSku || item.platformSkc || "",
-    source: item.source || "manual",
+    companyName: item.companyName || item.productGroupName || "",
+    attributes:
+      item.attributes && item.attributes.length
+        ? item.attributes
+        : legacyAttributes.length
+          ? legacyAttributes
+          : getDefaultProductAttributes(),
     status: item.status || "active",
     createdAt: item.createdAt || now,
     updatedAt: item.updatedAt || item.createdAt || now,
@@ -45,30 +100,43 @@ export function normalizeCompanySku(item: LegacyCompanySku): CompanySku {
 export function isSkuIncomplete(item: CompanySku) {
   return (
     item.status === "active" &&
-    [
-      item.productGroupName,
-      item.productNameCn,
-      item.specification,
-      item.color,
-      item.size,
-      item.imageUrl,
-      item.supplierUrl,
-      item.defaultWarningQuantity,
-    ].some((value) => !value.trim())
+    (!item.companyName.trim() ||
+      !getProductAttributeString(item.attributes, "产品名称").trim() ||
+      item.attributes.every((attribute) => !attribute.key.trim()))
   );
 }
 
-export function validateCompanySku(value: CompanySku, companySkus: CompanySku[], mode: "create" | "edit") {
+export function validateCompanySku(
+  value: CompanySku,
+  _companySkus: CompanySku[],
+  mode: "create" | "edit",
+  options?: { requireEmployeeAccount?: boolean },
+) {
   const errors: Record<string, string> = {};
-  const internalSku = value.internalSku.trim();
 
-  if (!internalSku) errors.internalSku = "内部商品编码不能为空";
-  if (!value.productNameCn.trim()) errors.productNameCn = "商品名称不能为空";
-  if (
-    internalSku &&
-    companySkus.some((item) => item.internalSku.trim() === internalSku && (mode === "create" || item.id !== value.id))
-  ) {
-    errors.internalSku = "内部商品编码已存在";
+  if (!value.companyName.trim()) {
+    errors.companyName = "请选择公司名称";
+  }
+
+  if (!getProductNameAttribute(value.attributes).trim()) {
+    errors.productName = "请填写产品名称";
+  }
+
+  if (options?.requireEmployeeAccount && !getEmployeeAccountAttribute(value.attributes).trim()) {
+    errors.employeeAccount = "请填写员工账号";
+  }
+
+  const attributeErrors = validateProductAttributes(
+    getEditableProductAttributes(value.attributes).filter((attribute) => attribute.key.trim()),
+  );
+  Object.assign(errors, attributeErrors);
+
+  if (mode === "create" && !value.internalSku.trim()) {
+    errors.internalSku = "内部商品编码缺失";
+  }
+
+  if (mode === "edit" && !value.internalSku.trim()) {
+    errors.internalSku = "内部商品编码缺失";
   }
 
   return errors;
@@ -83,4 +151,8 @@ export function resolveCompanySkuState(internalSku: string, companySkus: Company
 
 export function countMappingsForSku(internalSku: string, mappings: { internalSku: string }[]) {
   return mappings.filter((mapping) => mapping.internalSku === internalSku).length;
+}
+
+export function companySkuSearchText(item: CompanySku) {
+  return [item.internalSku, item.companyName, productAttributesToSearchText(item.attributes)].join(" ");
 }

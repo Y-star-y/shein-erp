@@ -53,7 +53,7 @@ export function ErpProvider({
   normalizeMapping: (item: PlatformSkuMapping) => PlatformSkuMapping;
   isSkuIncomplete: (item: CompanySku) => boolean;
 }) {
-  const [page, setPage] = useState<PageKey>("productManagement");
+  const [page, setPage] = useState<PageKey>("orderManagement");
   const [companySkus, setCompanySkus] = useState<CompanySku[]>([]);
   const [mappings, setMappings] = useState<PlatformSkuMapping[]>([]);
   const [companyQuery, setCompanyQuery] = useState("");

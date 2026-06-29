@@ -10,6 +10,7 @@ import {
   validatePhone,
 } from "@/lib/user-profile";
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 
 function buildProfileResponse(
   user: Parameters<typeof toUserRecord>[0],
@@ -30,7 +31,10 @@ export async function GET() {
   const authResult = await getSessionOr401();
   if ("error" in authResult) return authResult.error;
 
-  const user = await prisma.user.findUnique({ where: { id: authResult.session.user.id } });
+  const user = await prisma.user.findUnique({
+    where: { id: authResult.session.user.id },
+    include: { company: { select: { id: true, name: true } } },
+  });
   if (!user) {
     return NextResponse.json({ error: "用户不存在" }, { status: 404 });
   }
@@ -76,8 +80,8 @@ export async function PATCH(request: Request) {
   if (hasEmail) {
     const email = normalizeEmail(body.email);
     const emailError = validateEmail(email);
-    if (emailError) {
-      return NextResponse.json({ error: emailError }, { status: 400 });
+    if (emailError || !email) {
+      return NextResponse.json({ error: emailError ?? "邮箱不能为空" }, { status: 400 });
     }
     if (email === user.email) {
       return NextResponse.json({ error: "新邮箱与当前相同" }, { status: 400 });
@@ -100,7 +104,7 @@ export async function PATCH(request: Request) {
     action: hasPhone && hasEmail ? "修改个人联系方式" : hasPhone ? "修改个人手机" : "修改个人邮箱",
     entity: "User",
     entityId: user.id,
-    detail: auditDetails,
+    detail: auditDetails as Prisma.InputJsonValue,
   });
 
   return NextResponse.json(

@@ -45,7 +45,7 @@ export function InventoryManagementPage() {
         库存管理
       </Typography.Title>
       {error && (
-        <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />
+        <Alert type="error" showIcon title={error} style={{ marginBottom: 16 }} />
       )}
       <Card>
         <Spin spinning={loading}>

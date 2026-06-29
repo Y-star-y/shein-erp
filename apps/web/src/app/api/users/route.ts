@@ -20,6 +20,7 @@ type CreateUserBody = {
   email: string;
   password: string;
   role: Role;
+  companyId: string;
   permissions?: AppModule[];
 };
 
@@ -56,6 +57,7 @@ export async function GET() {
   try {
     const users = await prisma.user.findMany({
       where: { role: { not: Role.ADMIN } },
+      include: { company: { select: { id: true, name: true } } },
       orderBy: { createdAt: "desc" },
     });
 
@@ -90,6 +92,19 @@ export async function POST(request: Request) {
 
     if (!EMPLOYEE_ROLES.includes(role)) {
       return NextResponse.json({ error: "只能创建运营部或物流部员工" }, { status: 400 });
+    }
+
+    const companyId = body.companyId?.trim();
+    if (!companyId) {
+      return NextResponse.json({ error: "请选择所属公司" }, { status: 400 });
+    }
+
+    const company = await prisma.company.findUnique({ where: { id: companyId } });
+    if (!company) {
+      return NextResponse.json({ error: "所选公司不存在" }, { status: 400 });
+    }
+    if (!company.active) {
+      return NextResponse.json({ error: "所选公司已停用" }, { status: 400 });
     }
 
     if (password.length < 8) {
@@ -132,12 +147,14 @@ export async function POST(request: Request) {
         gender: body.gender ?? null,
         idNumber,
         phone,
+        companyId,
         role,
         passwordHash,
         permissions: normalized.permissions,
         active: true,
         mustChangePassword: true,
       },
+      include: { company: { select: { id: true, name: true } } },
     });
 
     await writeAuditLog({
@@ -152,6 +169,8 @@ export async function POST(request: Request) {
         gender: user.gender,
         idNumber: user.idNumber,
         phone: user.phone,
+        companyId: user.companyId,
+        companyName: user.company?.name,
       },
     });
 

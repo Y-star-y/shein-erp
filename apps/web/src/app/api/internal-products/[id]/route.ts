@@ -1,7 +1,13 @@
 import { auditActorId, writeAuditLog } from "@/lib/audit-log";
 import { getSessionOr401, requireModule } from "@/lib/auth-helpers";
 import { databaseErrorOrFallback } from "@/lib/database-error";
-import { parseWarningQuantity, productGroupRelation, toCompanySku } from "@/lib/master-data";
+import { getProductDisplayName } from "@shein-erp/shared";
+import { productAttributesInput, toCompanySku } from "@/lib/master-data";
+import { readStoredEmployeeIdNumber, resolveProductAttributesForSave, resolveProductCompanyName } from "@/lib/product-company";
+import {
+  findAccessibleInternalProductById,
+  internalProductAccessDeniedResponse,
+} from "@/lib/internal-product-access";
 import { prisma } from "@/lib/prisma";
 import type { CompanySku } from "@shein-erp/shared";
 import { NextResponse } from "next/server";
@@ -20,42 +26,65 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   const { id } = await params;
   const body = (await request.json()) as Partial<CompanySku>;
+
+  const current = await findAccessibleInternalProductById(authResult.session, id);
+  if ("error" in current) {
+    return internalProductAccessDeniedResponse(
+      current.error,
+      current.error === "内部商品不存在",
+    );
+  }
+
+  const existing = body.attributes !== undefined ? current.product : null;
+
+  let attributesUpdate: ReturnType<typeof productAttributesInput> | undefined;
+  if (body.attributes !== undefined) {
+    const preserveIdNumber = existing ? readStoredEmployeeIdNumber(existing.attributes) : undefined;
+    const attributesResult = await resolveProductAttributesForSave(
+      authResult.session,
+      body.attributes,
+      preserveIdNumber ? { preserveIdNumber } : undefined,
+    );
+    if ("error" in attributesResult) {
+      return NextResponse.json({ error: attributesResult.error }, { status: 400 });
+    }
+    attributesUpdate = attributesResult.attributes;
+  }
+
+  let companyNameUpdate: string | undefined;
+  if (body.companyName !== undefined && authResult.session.user.role === "ADMIN") {
+    const companyResult = await resolveProductCompanyName(authResult.session, body.companyName);
+    if ("error" in companyResult) {
+      return NextResponse.json({ error: companyResult.error }, { status: 400 });
+    }
+    companyNameUpdate = companyResult.companyName;
+  }
+
   try {
     const product = await prisma.internalProduct.update({
       where: { id },
       data: {
-        ...(body.internalSku !== undefined ? { internalSku: body.internalSku.trim() } : {}),
-        ...(body.productGroupName !== undefined
-          ? body.productGroupName.trim()
-            ? { productGroup: productGroupRelation(body.productGroupName) }
-            : { productGroup: { disconnect: true } }
-          : {}),
-        ...(body.productNameCn !== undefined ? { productNameCn: body.productNameCn.trim() } : {}),
-        ...(body.specification !== undefined ? { specification: body.specification.trim() || null } : {}),
-        ...(body.color !== undefined ? { color: body.color.trim() || null } : {}),
-        ...(body.size !== undefined ? { size: body.size.trim() || null } : {}),
-        ...(body.model !== undefined ? { model: body.model.trim() || null } : {}),
-        ...(body.imageUrl !== undefined ? { imageUrl: body.imageUrl.trim() || null } : {}),
-        ...(body.supplierUrl !== undefined ? { supplierUrl: body.supplierUrl.trim() || null } : {}),
-        ...(body.defaultWarningQuantity !== undefined ? { defaultWarningQuantity: parseWarningQuantity(body.defaultWarningQuantity) } : {}),
+        ...(companyNameUpdate !== undefined ? { companyName: companyNameUpdate } : {}),
+        ...(attributesUpdate !== undefined ? { attributes: attributesUpdate } : {}),
         ...(body.status !== undefined ? { status: body.status } : {}),
       },
     });
 
-    const persisted = await prisma.internalProduct.findUniqueOrThrow({
-      where: { id: product.id },
-      include: { productGroup: true },
-    });
+    const persisted = toCompanySku(product);
 
     await writeAuditLog({
       userId: auditActorId(authResult.session),
       action: "编辑内部商品",
       entity: "InternalProduct",
       entityId: persisted.id,
-      detail: { internalSku: persisted.internalSku, productNameCn: persisted.productNameCn },
+      detail: {
+        internalSku: persisted.internalSku,
+        companyName: persisted.companyName,
+        productName: getProductDisplayName(persisted),
+      },
     });
 
-    return NextResponse.json(toCompanySku(persisted));
+    return NextResponse.json(persisted);
   } catch (error) {
     return productErrorResponse(error, "内部商品保存失败");
   }
@@ -70,7 +99,15 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
 
   const { id } = await params;
   try {
-    const existing = await prisma.internalProduct.findUnique({ where: { id } });
+    const current = await findAccessibleInternalProductById(authResult.session, id);
+    if ("error" in current) {
+      return internalProductAccessDeniedResponse(
+        current.error,
+        current.error === "内部商品不存在",
+      );
+    }
+
+    const existing = current.product;
     await prisma.internalProduct.delete({ where: { id } });
 
     if (existing) {
@@ -79,7 +116,10 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
         action: "删除内部商品",
         entity: "InternalProduct",
         entityId: id,
-        detail: { internalSku: existing.internalSku, productNameCn: existing.productNameCn },
+        detail: {
+          internalSku: existing.internalSku,
+          companyName: existing.companyName,
+        },
       });
     }
 
