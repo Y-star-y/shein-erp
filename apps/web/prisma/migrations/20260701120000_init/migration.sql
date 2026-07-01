@@ -1,5 +1,14 @@
+-- CreateSchema
+CREATE SCHEMA IF NOT EXISTS "public";
+
 -- CreateEnum
-CREATE TYPE "Role" AS ENUM ('ADMIN', 'OPERATOR', 'WAREHOUSE', 'PURCHASER');
+CREATE TYPE "Role" AS ENUM ('ADMIN', 'OPERATIONS', 'LOGISTICS');
+
+-- CreateEnum
+CREATE TYPE "Gender" AS ENUM ('MALE', 'FEMALE');
+
+-- CreateEnum
+CREATE TYPE "AppModule" AS ENUM ('productManagement', 'storeManagement', 'inventoryManagement', 'orderManagement', 'platformMappings', 'warehouseManagement', 'companyManagement', 'userManagement');
 
 -- CreateEnum
 CREATE TYPE "OrderStatus" AS ENUM ('PENDING', 'READY', 'SHIPPED', 'EXCEPTION');
@@ -19,15 +28,65 @@ CREATE TYPE "InternalProductStatus" AS ENUM ('active', 'inactive');
 -- CreateEnum
 CREATE TYPE "SheinMappingStatus" AS ENUM ('pending', 'active', 'inactive', 'conflict');
 
+-- CreateEnum
+CREATE TYPE "OrderLineMappingStatus" AS ENUM ('mapped', 'unmapped', 'excluded');
+
+-- CreateEnum
+CREATE TYPE "AuditSeverity" AS ENUM ('notice', 'info', 'warn', 'critical');
+
+-- CreateTable
+CREATE TABLE "Company" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Company_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "email" TEXT NOT NULL,
+    "gender" "Gender",
+    "idNumber" TEXT,
+    "phone" TEXT,
+    "emailVerified" TIMESTAMP(3),
+    "image" TEXT,
+    "passwordHash" TEXT,
     "role" "Role" NOT NULL,
+    "companyId" TEXT,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "mustChangePassword" BOOLEAN NOT NULL DEFAULT false,
+    "failedLoginAttempts" INTEGER NOT NULL DEFAULT 0,
+    "loginFailureWindowStart" TIMESTAMP(3),
+    "lockedUntil" TIMESTAMP(3),
+    "sessionVersion" INTEGER NOT NULL DEFAULT 0,
+    "permissions" "AppModule"[] DEFAULT ARRAY[]::"AppModule"[],
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Account" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "provider" TEXT NOT NULL,
+    "providerAccountId" TEXT NOT NULL,
+    "refresh_token" TEXT,
+    "access_token" TEXT,
+    "expires_at" INTEGER,
+    "token_type" TEXT,
+    "scope" TEXT,
+    "id_token" TEXT,
+    "session_state" TEXT,
+
+    CONSTRAINT "Account_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -46,6 +105,7 @@ CREATE TABLE "Store" (
     "name" TEXT NOT NULL,
     "platform" TEXT NOT NULL DEFAULT 'SHEIN',
     "active" BOOLEAN NOT NULL DEFAULT true,
+    "ownerId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -53,54 +113,28 @@ CREATE TABLE "Store" (
 );
 
 -- CreateTable
-CREATE TABLE "ProductGroup" (
-    "id" TEXT NOT NULL,
-    "groupCode" TEXT NOT NULL,
-    "nameCn" TEXT NOT NULL,
-    "nameEn" TEXT,
-    "category" TEXT,
-    "description" TEXT,
-    "imageUrl" TEXT,
-    "status" "InternalProductStatus" NOT NULL DEFAULT 'active',
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "ProductGroup_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "InternalProduct" (
     "id" TEXT NOT NULL,
     "internalSku" TEXT NOT NULL,
-    "productGroupId" TEXT,
-    "productNameCn" TEXT NOT NULL,
-    "productNameEn" TEXT,
-    "specification" TEXT,
-    "color" TEXT,
-    "size" TEXT,
-    "model" TEXT,
-    "shippingName" TEXT,
-    "description" TEXT,
-    "imageUrl" TEXT,
-    "supplierUrl" TEXT,
-    "purchaseLeadDays" INTEGER,
-    "declaredValue" DECIMAL(18,4),
-    "declaredCurrency" TEXT,
-    "weightGram" DECIMAL(12,3),
-    "lengthCm" DECIMAL(10,2),
-    "widthCm" DECIMAL(10,2),
-    "heightCm" DECIMAL(10,2),
-    "hsCode" TEXT,
-    "originCountry" TEXT,
-    "hasBattery" BOOLEAN NOT NULL DEFAULT false,
-    "isSensitiveCargo" BOOLEAN NOT NULL DEFAULT false,
-    "defaultWarningQuantity" INTEGER NOT NULL DEFAULT 0,
+    "companyName" TEXT NOT NULL DEFAULT '',
+    "attributes" JSONB NOT NULL DEFAULT '[]',
     "status" "InternalProductStatus" NOT NULL DEFAULT 'active',
-    "source" TEXT NOT NULL DEFAULT 'manual',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "InternalProduct_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "StoreProductInventoryWarning" (
+    "id" TEXT NOT NULL,
+    "storeId" TEXT NOT NULL,
+    "internalProductId" TEXT NOT NULL,
+    "warningQuantity" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "StoreProductInventoryWarning_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -109,7 +143,7 @@ CREATE TABLE "SheinProductMapping" (
     "platform" TEXT NOT NULL DEFAULT 'SHEIN',
     "storeId" TEXT NOT NULL,
     "internalProductId" TEXT,
-    "platformSkc" TEXT NOT NULL,
+    "platformSkc" TEXT,
     "platformSku" TEXT,
     "platformSpu" TEXT,
     "sheinProductId" TEXT,
@@ -154,9 +188,11 @@ CREATE TABLE "Sku" (
 CREATE TABLE "ImportJob" (
     "id" TEXT NOT NULL,
     "filename" TEXT NOT NULL,
+    "type" TEXT NOT NULL DEFAULT 'shein_order',
     "totalRows" INTEGER NOT NULL,
     "successRows" INTEGER NOT NULL,
     "errorRows" INTEGER NOT NULL,
+    "createdById" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "ImportJob_pkey" PRIMARY KEY ("id")
@@ -169,10 +205,20 @@ CREATE TABLE "Order" (
     "orderNo" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL,
     "shipBy" TIMESTAMP(3),
+    "deliverBy" TIMESTAMP(3),
     "country" TEXT,
     "currency" TEXT,
     "warehouseId" TEXT,
+    "storeId" TEXT,
+    "importJobId" TEXT,
     "status" "OrderStatus" NOT NULL DEFAULT 'PENDING',
+    "platformStatus" TEXT,
+    "logisticsNo" TEXT,
+    "logisticsCompany" TEXT,
+    "recipientName" TEXT,
+    "recipientPhone" TEXT,
+    "recipientAddress" TEXT,
+    "recipientPostalCode" TEXT,
 
     CONSTRAINT "Order_pkey" PRIMARY KEY ("id")
 );
@@ -182,12 +228,17 @@ CREATE TABLE "OrderLine" (
     "id" TEXT NOT NULL,
     "orderId" TEXT NOT NULL,
     "skuId" TEXT,
-    "sellerSku" TEXT NOT NULL,
-    "platformSku" TEXT,
+    "sellerSku" TEXT,
+    "platformSku" TEXT NOT NULL,
+    "platformSkc" TEXT,
+    "platformSpu" TEXT,
     "productName" TEXT NOT NULL,
     "spec" TEXT,
+    "articleNo" TEXT,
     "quantity" INTEGER NOT NULL DEFAULT 1,
     "price" DECIMAL(12,2),
+    "mappingStatus" "OrderLineMappingStatus" NOT NULL DEFAULT 'unmapped',
+    "sheinMappingId" TEXT,
 
     CONSTRAINT "OrderLine_pkey" PRIMARY KEY ("id")
 );
@@ -305,29 +356,69 @@ CREATE TABLE "AuditLog" (
     "action" TEXT NOT NULL,
     "entity" TEXT NOT NULL,
     "entityId" TEXT NOT NULL,
+    "severity" "AuditSeverity" NOT NULL DEFAULT 'info',
     "detail" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "PasswordResetToken" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "tokenHash" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PasswordResetToken_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LoginCaptcha" (
+    "id" TEXT NOT NULL,
+    "codeHash" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "LoginCaptcha_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Company_name_key" ON "Company"("name");
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_idNumber_key" ON "User"("idNumber");
+
+-- CreateIndex
+CREATE INDEX "User_companyId_idx" ON "User"("companyId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Account_provider_providerAccountId_key" ON "Account"("provider", "providerAccountId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Warehouse_code_key" ON "Warehouse"("code");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Store_name_key" ON "Store"("name");
-
--- CreateIndex
-CREATE UNIQUE INDEX "ProductGroup_groupCode_key" ON "ProductGroup"("groupCode");
+CREATE UNIQUE INDEX "Store_ownerId_name_key" ON "Store"("ownerId", "name");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "InternalProduct_internalSku_key" ON "InternalProduct"("internalSku");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "SheinProductMapping_platformSkc_key" ON "SheinProductMapping"("platformSkc");
+CREATE INDEX "StoreProductInventoryWarning_storeId_idx" ON "StoreProductInventoryWarning"("storeId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "StoreProductInventoryWarning_storeId_internalProductId_key" ON "StoreProductInventoryWarning"("storeId", "internalProductId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SheinProductMapping_platformSku_key" ON "SheinProductMapping"("platformSku");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SheinProductMapping_sellerSku_key" ON "SheinProductMapping"("sellerSku");
 
 -- CreateIndex
 CREATE INDEX "SheinProductMapping_storeId_idx" ON "SheinProductMapping"("storeId");
@@ -348,7 +439,25 @@ CREATE UNIQUE INDEX "Sku_sellerSku_key" ON "Sku"("sellerSku");
 CREATE UNIQUE INDEX "Order_orderNo_key" ON "Order"("orderNo");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "OrderLine_orderId_sellerSku_key" ON "OrderLine"("orderId", "sellerSku");
+CREATE INDEX "Order_storeId_idx" ON "Order"("storeId");
+
+-- CreateIndex
+CREATE INDEX "Order_importJobId_idx" ON "Order"("importJobId");
+
+-- CreateIndex
+CREATE INDEX "OrderLine_platformSku_mappingStatus_idx" ON "OrderLine"("platformSku", "mappingStatus");
+
+-- CreateIndex
+CREATE INDEX "OrderLine_sellerSku_idx" ON "OrderLine"("sellerSku");
+
+-- CreateIndex
+CREATE INDEX "OrderLine_platformSkc_idx" ON "OrderLine"("platformSkc");
+
+-- CreateIndex
+CREATE INDEX "OrderLine_sheinMappingId_idx" ON "OrderLine"("sheinMappingId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "OrderLine_orderId_platformSku_key" ON "OrderLine"("orderId", "platformSku");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Shipment_shipmentNo_key" ON "Shipment"("shipmentNo");
@@ -362,8 +471,29 @@ CREATE UNIQUE INDEX "PurchaseOrder_purchaseNo_key" ON "PurchaseOrder"("purchaseN
 -- CreateIndex
 CREATE UNIQUE INDEX "Receipt_receiptNo_key" ON "Receipt"("receiptNo");
 
+-- CreateIndex
+CREATE INDEX "AuditLog_severity_createdAt_idx" ON "AuditLog"("severity", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PasswordResetToken_tokenHash_key" ON "PasswordResetToken"("tokenHash");
+
+-- CreateIndex
+CREATE INDEX "PasswordResetToken_userId_idx" ON "PasswordResetToken"("userId");
+
 -- AddForeignKey
-ALTER TABLE "InternalProduct" ADD CONSTRAINT "InternalProduct_productGroupId_fkey" FOREIGN KEY ("productGroupId") REFERENCES "ProductGroup"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "User" ADD CONSTRAINT "User_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Account" ADD CONSTRAINT "Account_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Store" ADD CONSTRAINT "Store_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoreProductInventoryWarning" ADD CONSTRAINT "StoreProductInventoryWarning_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoreProductInventoryWarning" ADD CONSTRAINT "StoreProductInventoryWarning_internalProductId_fkey" FOREIGN KEY ("internalProductId") REFERENCES "InternalProduct"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "SheinProductMapping" ADD CONSTRAINT "SheinProductMapping_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -375,10 +505,22 @@ ALTER TABLE "SheinProductMapping" ADD CONSTRAINT "SheinProductMapping_internalPr
 ALTER TABLE "Sku" ADD CONSTRAINT "Sku_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "ImportJob" ADD CONSTRAINT "ImportJob_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Order" ADD CONSTRAINT "Order_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Order" ADD CONSTRAINT "Order_importJobId_fkey" FOREIGN KEY ("importJobId") REFERENCES "ImportJob"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "OrderLine" ADD CONSTRAINT "OrderLine_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "OrderLine" ADD CONSTRAINT "OrderLine_skuId_fkey" FOREIGN KEY ("skuId") REFERENCES "Sku"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OrderLine" ADD CONSTRAINT "OrderLine_sheinMappingId_fkey" FOREIGN KEY ("sheinMappingId") REFERENCES "SheinProductMapping"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Shipment" ADD CONSTRAINT "Shipment_warehouseId_fkey" FOREIGN KEY ("warehouseId") REFERENCES "Warehouse"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -418,3 +560,6 @@ ALTER TABLE "ReceiptLine" ADD CONSTRAINT "ReceiptLine_receiptId_fkey" FOREIGN KE
 
 -- AddForeignKey
 ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PasswordResetToken" ADD CONSTRAINT "PasswordResetToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

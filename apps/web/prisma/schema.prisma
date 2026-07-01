@@ -73,6 +73,7 @@ enum SheinMappingStatus {
 enum OrderLineMappingStatus {
   mapped
   unmapped
+  excluded
 }
 
 model Company {
@@ -159,19 +160,6 @@ model Store {
   productInventoryWarnings   StoreProductInventoryWarning[]
 
   @@unique([ownerId, name])
-}
-
-model ProductGroup {
-  id          String   @id @default(cuid())
-  groupCode   String   @unique
-  nameCn      String
-  nameEn      String?
-  category    String?
-  description String?
-  imageUrl    String?
-  status      InternalProductStatus @default(active)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 }
 
 model InternalProduct {
@@ -299,12 +287,13 @@ model OrderLine {
   id              String @id @default(cuid())
   orderId         String
   skuId           String?
-  sellerSku       String
-  platformSku     String?
+  sellerSku       String?
+  platformSku     String
   platformSkc     String?
   platformSpu     String?
   productName     String
   spec            String?
+  articleNo       String?
   quantity        Int @default(1)
   price           Decimal? @db.Decimal(12, 2)
   mappingStatus   OrderLineMappingStatus @default(unmapped)
@@ -312,9 +301,9 @@ model OrderLine {
   order           Order @relation(fields: [orderId], references: [id])
   sku             Sku? @relation(fields: [skuId], references: [id])
   sheinMapping    SheinProductMapping? @relation(fields: [sheinMappingId], references: [id])
-  @@unique([orderId, sellerSku])
-  @@index([sellerSku, mappingStatus])
+  @@unique([orderId, platformSku])
   @@index([platformSku, mappingStatus])
+  @@index([sellerSku])
   @@index([platformSkc])
   @@index([sheinMappingId])
 }
