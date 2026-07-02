@@ -65,15 +65,14 @@ describe("ERP business rules", () => {
     expect(inventoryForOrder({ ...demoState, inventorySnapshots: [snapshot] }, order)?.dropshipStockQty).toBe(11);
   });
 
-  it("resolves mapped order lines by seller sku first", () => {
+  it("resolves mapped order lines by platform sku only", () => {
     const mappings = [
       { sellerSku: "seller-1", platformSku: "plat-1", status: "active", internalProductId: "prod-1", id: "map-1" },
       { sellerSku: "seller-2", platformSku: "plat-2", status: "pending", internalProductId: null, id: "map-2" },
     ];
 
     expect(resolveOrderLineMapping({ sellerSku: "seller-1", platformSku: "" }, mappings)).toEqual({
-      status: "mapped",
-      mappingId: "map-1",
+      status: "unmapped",
     });
     expect(resolveOrderLineMapping({ sellerSku: "", platformSku: "plat-1" }, mappings)).toEqual({
       status: "mapped",
@@ -84,9 +83,10 @@ describe("ERP business rules", () => {
     });
   });
 
-  it("builds unmapped group keys from seller sku or platform sku", () => {
-    expect(unmappedGroupKey("seller-1", "plat-1")).toBe("seller:seller-1");
+  it("builds unmapped group keys from platform sku only", () => {
+    expect(unmappedGroupKey("seller-1", "plat-1")).toBe("platform:plat-1");
     expect(unmappedGroupKey("", "plat-1")).toBe("platform:plat-1");
+    expect(unmappedGroupKey("", "")).toBe("");
   });
 
   it("finds active mappings by seller or platform sku", () => {

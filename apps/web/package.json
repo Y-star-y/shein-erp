@@ -3,12 +3,13 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "dev": "prisma generate && next dev",
+    "dev": "node scripts/db-deploy.js && node scripts/prisma-generate-safe.js && next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "db:deploy": "node scripts/db-deploy.js",
     "db:seed": "tsx prisma/seed.ts",
     "db:cleanup-orphan-orders": "tsx prisma/cleanup-orphan-orders.ts"
   },

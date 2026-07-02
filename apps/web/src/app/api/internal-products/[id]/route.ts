@@ -78,7 +78,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       entity: "InternalProduct",
       entityId: persisted.id,
       detail: {
-        internalSku: persisted.internalSku,
+        internalProductId: persisted.id,
         companyName: persisted.companyName,
         productName: getProductDisplayName(persisted),
       },
@@ -117,7 +117,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
         entity: "InternalProduct",
         entityId: id,
         detail: {
-          internalSku: existing.internalSku,
+          internalProductId: existing.id,
           companyName: existing.companyName,
         },
       });

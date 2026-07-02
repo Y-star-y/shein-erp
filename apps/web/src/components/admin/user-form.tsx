@@ -68,7 +68,9 @@ export function UserForm({ form, mode, initial, companies, errors, onSubmit }: U
   const assignableModules = ASSIGNABLE_BY_ROLE[role as Exclude<Role, "ADMIN">] ?? [];
   const defaultRole = initial?.role === "ADMIN" ? "OPERATIONS" : (initial?.role ?? "OPERATIONS");
   const defaultPermissions =
-    initial?.permissions.filter((item) => item !== "userManagement" && item !== "companyManagement") ??
+    initial?.permissions.filter(
+      (item) => item !== "userManagement" && item !== "companyManagement" && item !== "warehouseAdmin",
+    ) ??
     ROLE_DEFAULT_MODULES[defaultRole as Exclude<Role, "ADMIN">];
 
   const activeCompanies = companies.filter((company) => company.active || company.id === initial?.companyId);

@@ -21,6 +21,7 @@ export const MODULE_LABELS: Record<AppModule, string> = {
   orderManagement: "待办任务",
   platformMappings: "SHEIN映射",
   warehouseManagement: "仓库管理",
+  warehouseAdmin: "仓库管理",
   companyManagement: "公司管理",
   userManagement: "员工管理",
 };
@@ -42,6 +43,7 @@ export const ASSIGNABLE_BY_ROLE: Record<Exclude<Role, "ADMIN">, AppModule[]> = {
 export const ADMIN_MODULES: AppModule[] = [
   ...OPERATIONS_MODULES,
   "warehouseManagement",
+  "warehouseAdmin",
   "companyManagement",
   "userManagement",
 ];
@@ -65,7 +67,11 @@ export function normalizePermissions(
 
   const allowed = ASSIGNABLE_BY_ROLE[role as Exclude<Role, "ADMIN">] ?? [];
   const filtered = selected.filter(
-    (module) => module !== "userManagement" && module !== "companyManagement" && allowed.includes(module),
+    (module) =>
+      module !== "userManagement" &&
+      module !== "companyManagement" &&
+      module !== "warehouseAdmin" &&
+      allowed.includes(module),
   );
   const unique = [...new Set(filtered)];
 
@@ -101,6 +107,7 @@ const PAGE_ORDER: PageKey[] = [
   "storeManagement",
   "inventoryManagement",
   "warehouseManagement",
+  "warehouseAdmin",
   "companyManagement",
   "userManagement",
 ];

@@ -49,7 +49,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     select: {
       internalProductId: true,
       warningQuantity: true,
-      internalProduct: { select: { internalSku: true, companyName: true, attributes: true } },
+      internalProduct: { select: { id: true, companyName: true, attributes: true } },
     },
   });
 
@@ -61,10 +61,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     detail: {
       storeId,
       storeName: store.name,
-      internalSku: record.internalProduct.internalSku,
+      internalProductId: record.internalProduct.id,
       companyName: record.internalProduct.companyName,
       productName: getProductDisplayName({
-        internalSku: record.internalProduct.internalSku,
+        id: record.internalProduct.id,
         attributes: normalizeProductAttributes(record.internalProduct.attributes),
       }),
       warningQuantity,

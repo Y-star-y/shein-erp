@@ -1,13 +1,13 @@
+import { exceptionOrderOr, unresolvedBindingLineWhere } from "@/lib/order-scope";
 import { getSessionOr401 } from "@/lib/auth-helpers";
 import { canAccessModule } from "@/lib/permissions";
-import { findAccessibleStore, ordersWhereForSession } from "@/lib/store-access";
+import { findAccessibleStore, orderLinesWhereForSession, ordersWhereForSession } from "@/lib/store-access";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 export type StoreTabCounts = {
   orders: number;
   binding: number;
-  inventory: number;
   exceptions: number;
 };
 
@@ -36,25 +36,36 @@ export async function GET(_request: Request, context: RouteContext) {
     storeId,
   };
 
-  const [orders, binding, inventory, exceptions] = await Promise.all([
-    prisma.order.count({ where: orderWhere }),
-    prisma.orderLine.count({
+  const [orders, unmappedLines, exceptions] = await Promise.all([
+    prisma.order.count({
       where: {
-        mappingStatus: "unmapped",
-        order: orderWhere,
+        ...orderWhere,
+        NOT: { OR: exceptionOrderOr },
       },
     }),
-    prisma.sheinProductMapping.count({
-      where: { storeId, status: "active" },
+    prisma.orderLine.findMany({
+      where: {
+        AND: [
+          unresolvedBindingLineWhere,
+          orderLinesWhereForSession(session),
+          { order: { storeId } },
+          { platformSku: { not: "" } },
+        ],
+      },
+      select: { platformSku: true },
     }),
     prisma.order.count({
       where: {
         ...orderWhere,
-        status: "EXCEPTION",
+        OR: exceptionOrderOr,
       },
     }),
   ]);
 
-  const counts: StoreTabCounts = { orders, binding, inventory, exceptions };
+  const binding = new Set(
+    unmappedLines.map((line) => line.platformSku.trim()).filter(Boolean),
+  ).size;
+
+  const counts: StoreTabCounts = { orders, binding, exceptions };
   return NextResponse.json(counts);
 }

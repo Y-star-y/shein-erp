@@ -57,10 +57,7 @@ export function UnmappedTab({
 
   const filteredItems = useMemo(() => {
     return items.filter((item) =>
-      includesQuery(
-        [item.orderNo, item.platformSku, item.sellerSku, item.sheinProductName, item.storeName],
-        query,
-      ),
+      includesQuery([item.orderNo, item.platformSku, item.sheinProductName, item.storeName], query),
     );
   }, [items, query]);
 
@@ -91,7 +88,6 @@ export function UnmappedTab({
         render: (value: string | null) => formatOrderDateTime(value),
       },
       { title: "平台 SKU", dataIndex: "platformSku", width: 140, render: (value: string) => value || "—" },
-      { title: "卖家 SKU", dataIndex: "sellerSku", width: 140, render: (value: string) => value || "—" },
       { title: "SHEIN 商品名", dataIndex: "sheinProductName", ellipsis: true },
       ...(storeId
         ? []
@@ -121,7 +117,7 @@ export function UnmappedTab({
         <Input
           className="table-search"
           prefix={<Search size={15} />}
-          placeholder={storeId ? "搜索 GSP 订单、平台 SKU、卖家 SKU、商品名" : "搜索 GSP 订单、平台 SKU、卖家 SKU、商品名、店铺"}
+          placeholder={storeId ? "搜索 GSP 订单、平台 SKU、商品名" : "搜索 GSP 订单、平台 SKU、商品名、店铺"}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
@@ -155,7 +151,8 @@ export function UnmappedTab({
   return (
     <div className="page-stack">
       <PageHeader
-        description="以下商品来自订单导入且尚未绑定内部商品。匹配键为平台 SKU / 卖家 SKU，按订单明细展示。"
+        action={<span />}
+        description="以下商品来自订单导入且尚未完成平台 SKU 映射，按订单明细展示。"
         title="待绑定商品"
       />
       {tableSection}

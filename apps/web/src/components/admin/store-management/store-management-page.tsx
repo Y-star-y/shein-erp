@@ -2,7 +2,7 @@
 
 import { readJsonResponse } from "@/lib/api-response";
 import { AppModal, useErpStore } from "@shein-erp/shared";
-import type { OrderQuickFilter, StoreDetailTab, StoreOpenTarget, StoreRecord, UnmappedOrderLine } from "@shein-erp/shared";
+import type { StoreDetailTab, StoreOpenTarget, StoreRecord, UnmappedOrderLine } from "@shein-erp/shared";
 import { Button, Form, Input, Select, Space, Switch } from "antd";
 import { ArrowLeft, Plus, Store } from "lucide-react";
 import { useSession } from "next-auth/react";
@@ -12,18 +12,16 @@ import { StoreDetailPanel } from "./store-detail-panel";
 import { StoreListPanel } from "./store-list-panel";
 import type { StoreFormValues } from "./types";
 
-function resolveStoreDetailTab(
-  tab?: StoreDetailTab,
-): "orders" | "inventory" | "exceptions" | "settings" {
-  if (!tab || tab === "shipping" || tab === "binding") return "orders";
+function resolveStoreDetailTabFromTarget(
+  target?: StoreOpenTarget | null,
+): StoreDetailTab {
+  if (target?.ordersFilter === "unmapped" || target?.tab === "binding") {
+    return "binding";
+  }
+  const tab = target?.tab;
+  if (!tab || tab === "shipping" || tab === "inventory") return "orders";
   if (tab === "aftersales") return "exceptions";
   return tab;
-}
-
-function resolveOrdersFilter(target?: StoreOpenTarget | null): OrderQuickFilter {
-  if (target?.ordersFilter) return target.ordersFilter;
-  if (target?.tab === "binding") return "unmapped";
-  return "all";
 }
 
 export function StoreManagementPage({
@@ -52,10 +50,7 @@ export function StoreManagementPage({
   const [deactivatePasswordOpen, setDeactivatePasswordOpen] = useState(false);
   const [unmappedCounts, setUnmappedCounts] = useState<Record<string, number>>({});
   const [pendingShipCounts, setPendingShipCounts] = useState<Record<string, number>>({});
-  const [detailTab, setDetailTab] = useState<
-    "orders" | "inventory" | "exceptions" | "settings"
-  >("orders");
-  const [ordersFilter, setOrdersFilter] = useState<OrderQuickFilter>("all");
+  const [detailTab, setDetailTab] = useState<StoreDetailTab>("orders");
   const [form] = Form.useForm<StoreFormValues>();
 
   const loadUnmappedCounts = useCallback(async () => {
@@ -112,8 +107,7 @@ export function StoreManagementPage({
     if (!store) return;
     setSelectedStoreId(store.id);
     setView("detail");
-    setDetailTab(resolveStoreDetailTab(openTarget.tab));
-    setOrdersFilter(resolveOrdersFilter(openTarget));
+    setDetailTab(resolveStoreDetailTabFromTarget(openTarget));
     onConsumeOpenTarget?.();
   }, [openTarget, loading, onConsumeOpenTarget, stores]);
 
@@ -133,7 +127,6 @@ export function StoreManagementPage({
   function openStore(store: StoreRecord) {
     setSelectedStoreId(store.id);
     setDetailTab("orders");
-    setOrdersFilter("all");
     setView("detail");
   }
 
@@ -277,12 +270,11 @@ export function StoreManagementPage({
         <StoreDetailPanel
           activeTab={detailTab}
           bindReloadKey={bindReloadKey}
-          ordersFilter={ordersFilter}
           store={selectedStore}
           onBind={onBind}
           onDeleted={handleStoreDeleted}
           onImported={handleImported}
-          onTabChange={(tab) => setDetailTab(tab as typeof detailTab)}
+          onTabChange={(tab) => setDetailTab(tab as StoreDetailTab)}
           onUpdated={handleStoreUpdated}
         />
       ) : null}

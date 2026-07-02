@@ -1,15 +1,20 @@
 "use client";
 
 import { Input, InputNumber } from "antd";
+import type { InputRef } from "antd/es/input";
 import { Plus, Trash2 } from "lucide-react";
+import { useRef, type KeyboardEvent } from "react";
 import {
   PRODUCT_ATTRIBUTE_TYPE_OPTIONS,
   createEmptyProductAttribute,
+  getMaxProductAttributes,
   isTextAttributeType,
   type ProductAttributeType,
 } from "./product-attributes";
 import type { FormErrors, ProductAttribute } from "./types";
 import { AppSelect, Button } from "./ui";
+
+type ValueInputHandle = Pick<InputRef, "focus"> | null;
 
 export function ProductAttributeEditor({
   attributes,
@@ -20,6 +25,30 @@ export function ProductAttributeEditor({
   errors: FormErrors;
   onChange: (attributes: ProductAttribute[]) => void;
 }) {
+  const valueInputRefs = useRef<ValueInputHandle[]>([]);
+
+  function focusValueInput(index: number) {
+    valueInputRefs.current[index]?.focus({ cursor: "end" });
+  }
+
+  function handleValueKeyDown(event: KeyboardEvent<HTMLInputElement>, index: number) {
+    if (event.key !== "Tab") {
+      return;
+    }
+
+    const targetIndex = event.shiftKey ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= attributes.length) {
+      return;
+    }
+
+    event.preventDefault();
+    focusValueInput(targetIndex);
+  }
+
+  function setValueInputRef(index: number, instance: ValueInputHandle) {
+    valueInputRefs.current[index] = instance;
+  }
+
   function updateAttribute(index: number, patch: Partial<ProductAttribute>) {
     onChange(
       attributes.map((attribute, currentIndex) =>
@@ -33,8 +62,14 @@ export function ProductAttributeEditor({
   }
 
   function addAttribute() {
+    if (attributes.length >= getMaxProductAttributes()) {
+      return;
+    }
     onChange([...attributes, createEmptyProductAttribute()]);
   }
+
+  const maxAttributes = getMaxProductAttributes();
+  const atAttributeLimit = attributes.length >= maxAttributes;
 
   return (
     <div className="product-attribute-editor">
@@ -57,18 +92,22 @@ export function ProductAttributeEditor({
               {attributeType === "text" ? (
                 <Input
                   placeholder="参数值"
+                  ref={(instance) => setValueInputRef(index, instance)}
                   status={valueError ? "error" : undefined}
                   value={String(attribute.value ?? "")}
                   onChange={(event) => updateAttribute(index, { value: event.target.value, type: "text" })}
+                  onKeyDown={(event) => handleValueKeyDown(event, index)}
                 />
               ) : (
                 <InputNumber
                   className="product-attribute-number"
                   placeholder="参数值"
+                  ref={(instance) => setValueInputRef(index, instance)}
                   status={valueError ? "error" : undefined}
                   style={{ width: "100%" }}
                   value={typeof attribute.value === "number" ? attribute.value : undefined}
                   onChange={(next) => updateAttribute(index, { value: next ?? 0, type: "number" })}
+                  onKeyDown={(event) => handleValueKeyDown(event, index)}
                 />
               )}
             </div>
@@ -103,8 +142,17 @@ export function ProductAttributeEditor({
         );
       })}
 
-      <Button block icon={<Plus size={14} />} type="dashed" onClick={addAttribute}>
-        添加参数
+      {errors.form ? <div className="product-attribute-error">{errors.form}</div> : null}
+
+      <Button
+        block
+        disabled={atAttributeLimit}
+        icon={<Plus size={14} />}
+        title={atAttributeLimit ? `最多 ${maxAttributes} 条自定义参数` : undefined}
+        type="dashed"
+        onClick={addAttribute}
+      >
+        添加参数{atAttributeLimit ? `（已达上限 ${maxAttributes} 条）` : `（${attributes.length}/${maxAttributes}）`}
       </Button>
     </div>
   );

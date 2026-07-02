@@ -54,17 +54,16 @@ export function getOrderStatusDisplay(input: {
   platformStatus?: string | null;
   unmappedLineCount: number;
 }): OrderStatusDisplay {
-  let key: OrderDisplayStatus;
-
   if (input.unmappedLineCount > 0) {
-    key = "unmapped";
-  } else if (input.status === "EXCEPTION") {
-    key = "exception";
-  } else {
-    const platformStatus = input.platformStatus?.trim();
-    key = platformStatus ? fromPlatformStatus(platformStatus) : fromInternalStatus(input.status);
+    return { key: "exception", label: "待绑定", color: "error", clickable: false };
   }
 
+  if (input.status === "EXCEPTION") {
+    return { key: "exception", ...STATUS_META.exception };
+  }
+
+  const platformStatus = input.platformStatus?.trim();
+  const key = platformStatus ? fromPlatformStatus(platformStatus) : fromInternalStatus(input.status);
   return { key, ...STATUS_META[key] };
 }
 

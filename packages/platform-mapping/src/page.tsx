@@ -53,10 +53,9 @@ export function PlatformMappingPage({
           [
             item.platform,
             item.storeName,
-            item.internalSku,
+            item.internalProductId,
             item.platformSkc,
             item.platformSku,
-            item.sellerSku,
             item.sheinProductId,
             item.platformSpu,
             item.sheinProductName,
@@ -77,13 +76,12 @@ export function PlatformMappingPage({
         dataIndex: "platformSku",
         render: (value: string) => <strong title={value}>{value || "—"}</strong>,
       },
-      { title: "卖家 SKU", dataIndex: "sellerSku", render: (value: string) => <span title={value}>{value || "—"}</span> },
-      { title: "内部商品编码", dataIndex: "internalSku", render: (value: string) => <span title={value}>{value || "—"}</span> },
+      { title: "内部商品 ID", dataIndex: "internalProductId", render: (value: string) => <span title={value}>{value || "—"}</span> },
       {
         title: "商品状态",
         key: "skuState",
         render: (_: unknown, item: PlatformSkuMapping) => {
-          const skuState = resolveCompanySkuState(item.internalSku, companySkus);
+          const skuState = resolveCompanySkuState(item.internalProductId, companySkus);
           return <StatusTag value={skuState.label} tone={skuState.tone} />;
         },
       },
@@ -124,7 +122,7 @@ export function PlatformMappingPage({
             新增映射
           </Button>
         }
-        description="将 SHEIN 平台 SKU 绑定到 ERP 内部商品。匹配与映射以平台 SKU / 卖家 SKU 为唯一键；平台 SKC 不唯一，仅作款式/颜色参考。"
+        description="将 SHEIN 平台 SKU 绑定到 ERP 内部商品。匹配以平台 SKU 为唯一键；多个店铺的平台 SKU 可指向同一内部商品。"
         title="平台 SKU 映射"
       />
 
@@ -133,7 +131,7 @@ export function PlatformMappingPage({
           <Input
             className="table-search"
             prefix={<Search size={15} />}
-            placeholder="搜索店铺、平台 SKU、卖家 SKU、内部商品编码、SPU、商品名"
+            placeholder="搜索店铺、平台 SKU、内部商品 ID、SPU、商品名"
             value={mappingQuery}
             onChange={(event) => setMappingQuery(event.target.value)}
           />

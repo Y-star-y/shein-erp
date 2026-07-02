@@ -68,8 +68,7 @@ export function StoreInventoryTab({ storeId }: { storeId: string }) {
 
   const columns = useMemo(
     () => [
-      { title: "卖家 SKU", dataIndex: "sellerSku", width: 140, ellipsis: true },
-      { title: "内部 SKU", dataIndex: "internalSku", width: 140, ellipsis: true },
+      { title: "内部商品 ID", dataIndex: "internalProductId", width: 220, ellipsis: true },
       { title: "商品名称", dataIndex: "productName", ellipsis: true },
       { title: "仓库 SKU", dataIndex: "sku", width: 120, render: (v: string | null) => v ?? "—" },
       {

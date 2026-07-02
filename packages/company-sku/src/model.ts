@@ -1,18 +1,20 @@
-import type { CompanySku } from "@shein-erp/shared";
+import type { CompanySku, ProductAttribute } from "@shein-erp/shared";
 import {
-  generateClientInternalSku,
   getDefaultProductAttributes,
   getEditableProductAttributes,
   getEmployeeAccountAttribute,
   getProductAttributeString,
   getProductNameAttribute,
   mergeStoredTopLevelAttributes,
+  matchesCompanySkuSearch,
   nowText,
-  productAttributesToSearchText,
   validateProductAttributes,
 } from "@shein-erp/shared";
 
+export { matchesCompanySkuSearch };
+
 type LegacyCompanySku = Partial<CompanySku> & {
+  internalSku?: string;
   platformSkc?: string;
   productGroupName?: string;
   productNameCn?: string;
@@ -56,19 +58,30 @@ function legacyAttributesFromItem(item: LegacyCompanySku) {
 }
 
 export function createCompanySku(options?: {
-  internalSku?: string;
   companyName?: string;
   employeeAccount?: string;
+  productName?: string;
+  spec?: string;
+  articleNo?: string;
 }): CompanySku {
   const now = nowText();
+  const attributes = mergeStoredTopLevelAttributes(getDefaultProductAttributes(), {
+    employeeAccount: options?.employeeAccount ?? "",
+    productName: options?.productName ?? "",
+  });
+
+  const extraAttributes: ProductAttribute[] = [];
+  if (options?.spec?.trim()) {
+    extraAttributes.push({ key: "规格", type: "text", value: options.spec.trim() });
+  }
+  if (options?.articleNo?.trim()) {
+    extraAttributes.push({ key: "货号", type: "text", value: options.articleNo.trim() });
+  }
 
   return {
     id: `company-sku-${Date.now()}`,
-    internalSku: options?.internalSku ?? generateClientInternalSku(),
     companyName: options?.companyName ?? "",
-    attributes: mergeStoredTopLevelAttributes(getDefaultProductAttributes(), {
-      employeeAccount: options?.employeeAccount ?? "",
-    }),
+    attributes: [...attributes, ...extraAttributes],
     status: "active",
     createdAt: now,
     updatedAt: now,
@@ -81,7 +94,7 @@ export function normalizeCompanySku(item: LegacyCompanySku): CompanySku {
   const normalized = {
     ...createCompanySku(),
     ...item,
-    internalSku: item.internalSku || item.platformSkc || "",
+    id: item.id || item.internalSku || item.platformSkc || `company-sku-${Date.now()}`,
     companyName: item.companyName || item.productGroupName || "",
     attributes:
       item.attributes && item.attributes.length
@@ -126,33 +139,27 @@ export function validateCompanySku(
     errors.employeeAccount = "请填写员工账号";
   }
 
+  const editable = getEditableProductAttributes(value.attributes);
   const attributeErrors = validateProductAttributes(
-    getEditableProductAttributes(value.attributes).filter((attribute) => attribute.key.trim()),
+    editable.filter((attribute) => attribute.key.trim()),
+    { attributeCount: editable.length },
   );
   Object.assign(errors, attributeErrors);
 
-  if (mode === "create" && !value.internalSku.trim()) {
-    errors.internalSku = "内部商品编码缺失";
-  }
-
-  if (mode === "edit" && !value.internalSku.trim()) {
-    errors.internalSku = "内部商品编码缺失";
+  if (mode === "edit" && !value.id.trim()) {
+    errors.id = "内部商品 ID 缺失";
   }
 
   return errors;
 }
 
-export function resolveCompanySkuState(internalSku: string, companySkus: CompanySku[]) {
-  const sku = companySkus.find((item) => item.internalSku === internalSku);
+export function resolveCompanySkuState(internalProductId: string, companySkus: CompanySku[]) {
+  const sku = companySkus.find((item) => item.id === internalProductId);
   if (!sku) return { label: "内部商品不存在", tone: "danger" as const };
   if (sku.status === "inactive") return { label: "内部商品已停用", tone: "warning" as const };
   return { label: "已绑定", tone: "success" as const };
 }
 
-export function countMappingsForSku(internalSku: string, mappings: { internalSku: string }[]) {
-  return mappings.filter((mapping) => mapping.internalSku === internalSku).length;
-}
-
-export function companySkuSearchText(item: CompanySku) {
-  return [item.internalSku, item.companyName, productAttributesToSearchText(item.attributes)].join(" ");
+export function countMappingsForSku(internalProductId: string, mappings: { internalProductId: string }[]) {
+  return mappings.filter((mapping) => mapping.internalProductId === internalProductId).length;
 }

@@ -28,7 +28,6 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       internalProduct: {
         select: {
           id: true,
-          internalSku: true,
           companyName: true,
           attributes: true,
         },
@@ -60,7 +59,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const lookupKeys = new Set<string>();
   for (const mapping of mappings) {
     if (mapping.sellerSku) lookupKeys.add(mapping.sellerSku);
-    if (mapping.internalProduct?.internalSku) lookupKeys.add(mapping.internalProduct.internalSku);
+    if (mapping.internalProduct?.id) lookupKeys.add(mapping.internalProduct.id);
   }
 
   const skuRecords =
@@ -89,11 +88,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   }
 
   const rows: StoreInventoryRow[] = mappings.map((mapping) => {
-    const internalSku = mapping.internalProduct?.internalSku ?? "";
     const internalProductId = mapping.internalProductId;
     const sellerSku = mapping.sellerSku?.trim() ?? "";
     const matchedSku =
-      (internalSku ? skuByKey.get(internalSku) : undefined) ??
+      (internalProductId ? skuByKey.get(internalProductId) : undefined) ??
       (sellerSku ? skuByKey.get(sellerSku) : undefined);
 
     const warehouseQty = matchedSku ? matchedSku.stocks.reduce((sum, s) => sum + s.quantity, 0) : null;
@@ -101,7 +99,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
     const productName = mapping.internalProduct
       ? getProductDisplayName({
-          internalSku: mapping.internalProduct.internalSku,
+          id: mapping.internalProduct.id,
           attributes: normalizeProductAttributes(mapping.internalProduct.attributes),
         })
       : mapping.sheinProductName || sellerSku || "—";
@@ -110,7 +108,6 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       mappingId: mapping.id,
       internalProductId,
       sellerSku,
-      internalSku,
       productName,
       sku: matchedSku?.code ?? null,
       warehouseQty,

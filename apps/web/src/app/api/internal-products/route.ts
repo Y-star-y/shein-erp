@@ -1,7 +1,6 @@
 import { auditActorId, writeAuditLog } from "@/lib/audit-log";
 import { getSessionOr401, requireModule } from "@/lib/auth-helpers";
 import { databaseErrorOrFallback } from "@/lib/database-error";
-import { generateUniqueInternalSku, isValidInternalProductCode } from "@/lib/internal-product-id";
 import { resolveProductAttributesForSave, resolveProductCompanyName } from "@/lib/product-company";
 import { getProductDisplayName } from "@shein-erp/shared";
 import { productAttributesInput, toCompanySku } from "@/lib/master-data";
@@ -35,21 +34,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    let internalSku = body.internalSku?.trim() ?? "";
-    if (!isValidInternalProductCode(internalSku)) {
-      internalSku = await generateUniqueInternalSku((sku) =>
-        prisma.internalProduct.findUnique({ where: { internalSku: sku }, select: { id: true } }),
-      );
-    } else {
-      const duplicate = await prisma.internalProduct.findUnique({ where: { internalSku }, select: { id: true } });
-      if (duplicate) {
-        return NextResponse.json({ error: "内部商品编码已存在，请重新打开对话框" }, { status: 409 });
-      }
-    }
-
     const product = await prisma.internalProduct.create({
       data: {
-        internalSku,
         companyName: companyResult.companyName,
         attributes: attributesResult.attributes,
         status: body.status,
@@ -64,7 +50,7 @@ export async function POST(request: Request) {
       entity: "InternalProduct",
       entityId: persisted.id,
       detail: {
-        internalSku: persisted.internalSku,
+        internalProductId: persisted.id,
         companyName: persisted.companyName,
         productName: getProductDisplayName(persisted),
       },
@@ -72,9 +58,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json(persisted);
   } catch (error) {
-    if (error instanceof Error && error.message === "INTERNAL_SKU_GENERATION_FAILED") {
-      return NextResponse.json({ error: "内部商品编码生成失败，请重试" }, { status: 500 });
-    }
     return saveErrorResponse(error);
   }
 }

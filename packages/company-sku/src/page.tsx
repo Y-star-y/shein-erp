@@ -2,11 +2,11 @@
 
 import {
   AppSelect,
+  CopyableCodeText,
   EmptyBlock,
   PageHeader,
   StatusTag,
   getProductDisplayName,
-  includesQuery,
   statusOptions,
   statusText,
   statusTone,
@@ -15,9 +15,11 @@ import {
   type CompanySkuStatus,
 } from "@shein-erp/shared";
 import { Button, Input, Space, Table, Tag } from "antd";
-import { Package, Pencil, Plus, Search, Trash2 } from "lucide-react";
-import { useMemo } from "react";
-import { companySkuSearchText, countMappingsForSku } from "./model";
+import { ChevronDown, ChevronRight, Package, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ProductMappingStoresModal } from "./mapping-stores-modal";
+import { matchesCompanySkuSearch } from "./model";
+import { ProductParamsPanel } from "./product-params-panel";
 
 export function CompanySkuPage({
   onCreate,
@@ -32,29 +34,53 @@ export function CompanySkuPage({
 }) {
   const {
     companySkus,
-    mappings,
     companyQuery,
     setCompanyQuery,
     companyStatusFilter,
     setCompanyStatusFilter,
   } = useErpStore();
 
+  const [expandedRowKeys, setExpandedRowKeys] = useState<string[]>([]);
+  const [mappingCounts, setMappingCounts] = useState<Record<string, number>>({});
+  const [mappingModalProduct, setMappingModalProduct] = useState<CompanySku | null>(null);
+
+  const loadMappingCounts = useCallback(() => {
+    fetch("/api/internal-products/mapping-counts")
+      .then(async (response) => {
+        const body = (await response.json().catch(() => ({}))) as {
+          counts?: Record<string, number>;
+        };
+        if (!response.ok) return;
+        setMappingCounts(body.counts ?? {});
+      })
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    loadMappingCounts();
+  }, [companySkus, loadMappingCounts]);
+
   const filteredCompanySkus = useMemo(() => {
     return companySkus.filter((item) => {
       const statusMatched = companyStatusFilter === "all" || item.status === companyStatusFilter;
       if (!statusMatched) return false;
-      return includesQuery([companySkuSearchText(item)], companyQuery);
+      return matchesCompanySkuSearch(item, companyQuery);
     });
   }, [companyQuery, companySkus, companyStatusFilter]);
 
   const columns = useMemo(
     () => [
       {
-        title: "内部商品编码",
-        dataIndex: "internalSku",
+        title: "内部商品 ID",
+        dataIndex: "id",
         width: 220,
         ellipsis: true,
-        render: (value: string) => <strong>{value}</strong>,
+        render: (value: string, item: CompanySku) => (
+          <span className="product-row-title">
+            {expandedRowKeys.includes(item.id) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            <CopyableCodeText stopPropagation value={value} />
+          </span>
+        ),
       },
       {
         title: "公司名称",
@@ -74,7 +100,23 @@ export function CompanySkuPage({
         title: "映射数",
         key: "mappingCount",
         width: 90,
-        render: (_: unknown, item: CompanySku) => countMappingsForSku(item.internalSku, mappings),
+        className: "table-cell-interactive",
+        render: (_: unknown, item: CompanySku) => {
+          const count = mappingCounts[item.id] ?? 0;
+          return (
+            <button
+              className="mapping-count-link"
+              title="查看店铺映射"
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                setMappingModalProduct(item);
+              }}
+            >
+              {count}
+            </button>
+          );
+        },
       },
       {
         title: "状态",
@@ -93,7 +135,7 @@ export function CompanySkuPage({
         ),
       },
     ],
-    [mappings, onDelete, onEdit, onStatusChange],
+    [expandedRowKeys, mappingCounts, onDelete, onEdit, onStatusChange],
   );
 
   return (
@@ -104,7 +146,7 @@ export function CompanySkuPage({
             新增内部商品
           </Button>
         }
-        description="内部商品是真实可发货的商品。各店铺订单通过平台 SKU / 卖家 SKU 映射到这里，库存、采购、借货都以内部商品为准。"
+        description="内部商品是真实可发货的商品。各店铺订单通过平台 SKU 映射到这里。"
         title="内部商品"
       />
 
@@ -113,7 +155,7 @@ export function CompanySkuPage({
           <Input
             className="table-search"
             prefix={<Search size={15} />}
-            placeholder="搜索内部商品编码、公司名称、产品名称"
+            placeholder="搜索关键词，或多字段 尺码:S, 颜色:红（冒号、逗号均支持中英文）"
             value={companyQuery}
             onChange={(event) => setCompanyQuery(event.target.value)}
           />
@@ -126,9 +168,24 @@ export function CompanySkuPage({
           <Tag className="count-pill">{filteredCompanySkus.length}/{companySkus.length}</Tag>
         </div>
         <Table
+          className="company-sku-table"
           columns={columns}
           dataSource={filteredCompanySkus}
-          locale={{ emptyText: <EmptyBlock icon={<Package size={22} />} title="暂无内部商品" text="先新增内部商品，再按平台 SKU 绑定各店铺订单。" /> }}
+          expandable={{
+            expandedRowKeys,
+            expandIcon: () => null,
+            expandIconColumnIndex: -1,
+            expandedRowRender: (record) => <ProductParamsPanel item={record} />,
+          }}
+          locale={{ emptyText: <EmptyBlock icon={<Package size={22} />} title="暂无内部商品" text="先新增内部商品，再按平台 SKU 绑定各店铺订单。点击商品行可展开查看参数。" /> }}
+          onRow={(record) => ({
+            className: expandedRowKeys.includes(record.id) ? "company-sku-row is-expanded" : "company-sku-row",
+            onClick: () => {
+              setExpandedRowKeys((keys) =>
+                keys.includes(record.id) ? keys.filter((key) => key !== record.id) : [...keys, record.id],
+              );
+            },
+          })}
           pagination={false}
           rowKey="id"
           scroll={{ x: 980 }}
@@ -136,6 +193,13 @@ export function CompanySkuPage({
           tableLayout="fixed"
         />
       </section>
+      {mappingModalProduct ? (
+        <ProductMappingStoresModal
+          product={mappingModalProduct}
+          onClose={() => setMappingModalProduct(null)}
+          onMappingChanged={loadMappingCounts}
+        />
+      ) : null}
     </div>
   );
 }
@@ -152,12 +216,20 @@ function CompanySkuActions({
   onStatusChange: (item: CompanySku, status: CompanySkuStatus) => void;
 }) {
   return (
-    <Space size={6}>
-      <Button icon={<Pencil size={14} />} size="small" type="link" onClick={() => onEdit(item)}>编辑</Button>
-      <Button size="small" type="link" onClick={() => onStatusChange(item, item.status === "active" ? "inactive" : "active")}>
+    <Space size={6} onClick={(event) => event.stopPropagation()}>
+      <Button icon={<Pencil size={14} />} size="small" type="link" onClick={() => onEdit(item)}>
+        编辑
+      </Button>
+      <Button
+        size="small"
+        type="link"
+        onClick={() => onStatusChange(item, item.status === "active" ? "inactive" : "active")}
+      >
         {item.status === "active" ? "停用" : "启用"}
       </Button>
-      <Button danger icon={<Trash2 size={14} />} size="small" type="link" onClick={() => onDelete(item)}>删除</Button>
+      <Button danger icon={<Trash2 size={14} />} size="small" type="link" onClick={() => onDelete(item)}>
+        删除
+      </Button>
     </Space>
   );
 }

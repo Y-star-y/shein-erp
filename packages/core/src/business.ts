@@ -121,17 +121,7 @@ export function resolveOrderLineMapping(
   line: { sellerSku: string; platformSku: string },
   mappings: OrderLineMappingRef[],
 ): { status: "mapped" | "unmapped"; mappingId?: string } {
-  const sellerSku = line.sellerSku.trim();
   const platformSku = line.platformSku.trim();
-
-  if (sellerSku) {
-    const match = mappings.find(
-      (item) => item.sellerSku?.trim() === sellerSku && isActiveMapping(item),
-    );
-    if (match) {
-      return { status: "mapped", mappingId: match.id };
-    }
-  }
 
   if (platformSku) {
     const match = mappings.find(
@@ -157,9 +147,7 @@ export function findActiveMappingByPlatformSku(mappings: OrderLineMappingRef[], 
   return mappings.find((item) => item.platformSku?.trim() === key && isActiveMapping(item));
 }
 
-export function unmappedGroupKey(sellerSku: string, platformSku: string) {
-  const seller = sellerSku.trim();
-  if (seller) return `seller:${seller}`;
+export function unmappedGroupKey(_sellerSku: string, platformSku: string) {
   const platform = platformSku.trim();
   if (platform) return `platform:${platform}`;
   return "";

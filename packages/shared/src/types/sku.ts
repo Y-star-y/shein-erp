@@ -10,7 +10,6 @@ export type ProductAttribute = {
 
 export type CompanySku = {
   id: string;
-  internalSku: string;
   companyName: string;
   attributes: ProductAttribute[];
   status: CompanySkuStatus;
@@ -24,7 +23,7 @@ export type PlatformSkuMapping = {
   id: string;
   platform: string;
   storeName: string;
-  internalSku: string;
+  internalProductId: string;
   platformSkc: string;
   platformSku: string;
   sheinProductId: string;
@@ -43,6 +42,7 @@ export type PageKey =
   | "inventoryManagement"
   | "orderManagement"
   | "warehouseManagement"
+  | "warehouseAdmin"
   | "companyManagement"
   | "userManagement"
   | "profile";
@@ -72,7 +72,8 @@ export type OrderImportResult = {
   total: number;
   mapped: number;
   unmapped: number;
-  newSellerSkus: string[];
+  uniquePlatformSkuCount: number;
+  unmappedPlatformSkus: string[];
   importJobId: string;
 };
 
@@ -83,6 +84,8 @@ export type UnmappedSkcGroup = {
   platformSku: string;
   platformSpu: string;
   sheinProductName: string;
+  spec: string;
+  articleNo: string;
   storeName: string;
   orderCount: number;
   sampleOrderNo: string;
@@ -100,12 +103,18 @@ export type UnmappedOrderLine = UnmappedSkcGroup & {
 export type OrderBindRequest = {
   platformSkc: string;
   storeName: string;
-  internalSku: string;
-  sellerSku: string;
+  internalProductId: string;
   platformSku: string;
   platformSpu: string;
   sheinProductName: string;
+  spec: string;
+  articleNo: string;
   remark: string;
+};
+
+export type OrderBindResumeContext = {
+  type: "orderBind";
+  value: OrderBindRequest;
 };
 export type OrderBindResult = {
   mapping: PlatformSkuMapping;
@@ -120,7 +129,7 @@ export type SelectOption = {
 };
 
 export type ModalState =
-  | { type: "company"; mode: "create" | "edit"; value: CompanySku; errors: FormErrors }
+  | { type: "company"; mode: "create" | "edit"; value: CompanySku; errors: FormErrors; resume?: OrderBindResumeContext }
   | { type: "mapping"; mode: "create" | "edit"; value: PlatformSkuMapping; errors: FormErrors }
   | { type: "orderBind"; value: OrderBindRequest; errors: FormErrors }
   | null;
@@ -151,21 +160,24 @@ export type StoreOrderSummary = {
   logisticsCompany: string | null;
   lineCount: number;
   unmappedLineCount: number;
+  mappedLineCount: number;
+  excludedLineCount: number;
   storeName: string;
 };
 
 export type StoreOrderLineDetail = {
   id: string;
-  sellerSku: string;
-  platformSku: string | null;
+  sellerSku: string | null;
+  platformSku: string;
   platformSkc: string | null;
   platformSpu: string | null;
   productName: string;
   spec: string | null;
+  articleNo: string | null;
   quantity: number;
   price: number | null;
-  mappingStatus: "mapped" | "unmapped";
-  internalSku: string | null;
+  mappingStatus: "mapped" | "unmapped" | "excluded";
+  internalProductId: string | null;
 };
 
 export type StoreOrderDetail = StoreOrderSummary & {
@@ -188,7 +200,6 @@ export type StoreInventoryRow = {
   mappingId: string;
   internalProductId: string | null;
   sellerSku: string;
-  internalSku: string;
   productName: string;
   sku: string | null;
   warehouseQty: number | null;
@@ -196,4 +207,58 @@ export type StoreInventoryRow = {
   availableQty: number | null;
   warningQuantity: number;
   isLowStock: boolean;
+};
+
+export type InternalProductWarehouseStock = {
+  warehouseId: string;
+  warehouseCode: string;
+  warehouseName: string;
+  totalQty: number;
+  availableQty: number;
+  inTransitQty: number;
+  occupiedQty: number;
+};
+
+export type InternalProductInventoryRow = {
+  internalProductId: string;
+  productName: string;
+  sellerSku: string | null;
+  totalQty: number | null;
+  availableQty: number | null;
+  inTransitQty: number;
+  warehouses: InternalProductWarehouseStock[];
+};
+
+export type InternalProductInventoryLogRow = {
+  id: string;
+  direction: "IN" | "OUT";
+  directionLabel: string;
+  source: string;
+  sourceLabel: string;
+  quantity: number;
+  logisticsNo: string | null;
+  warehouseName: string | null;
+  batchNo: string | null;
+  referenceNo: string | null;
+  remark: string | null;
+  operatorName: string | null;
+  createdAt: string;
+};
+
+export type PurchaseOrderLine = {
+  internalProductId: string;
+  productName: string;
+  quantity: number;
+};
+
+export type PurchaseOrderSummary = {
+  orderNo: string;
+  purchaseType: "batch" | "single";
+  purchaseTypeLabel: string;
+  logisticsNo: string;
+  lineCount: number;
+  totalQuantity: number;
+  operatorName: string | null;
+  createdAt: string;
+  lines: PurchaseOrderLine[];
 };

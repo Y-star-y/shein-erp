@@ -1,3 +1,4 @@
+import { lineNeedsInternalProductBinding } from "@/lib/order-scope";
 import { getSessionOr401 } from "@/lib/auth-helpers";
 import { canAccessModule } from "@/lib/permissions";
 import { ordersWhereForSession } from "@/lib/store-access";
@@ -31,11 +32,11 @@ export async function GET(_request: Request, context: RouteContext) {
           sku: { select: { code: true } },
           sheinMapping: {
             include: {
-              internalProduct: { select: { internalSku: true } },
+              internalProduct: { select: { id: true } },
             },
           },
         },
-        orderBy: { sellerSku: "asc" },
+        orderBy: { platformSku: "asc" },
       },
     },
   });
@@ -44,7 +45,9 @@ export async function GET(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: "订单不存在或无权访问" }, { status: 404 });
   }
 
-  const unmappedLineCount = order.lines.filter((line) => line.mappingStatus === "unmapped").length;
+  const unmappedLineCount = order.lines.filter(lineNeedsInternalProductBinding).length;
+  const excludedLineCount = order.lines.filter((line) => line.mappingStatus === "excluded").length;
+  const mappedLineCount = order.lines.length - unmappedLineCount - excludedLineCount;
   const detail: StoreOrderDetail = {
     id: order.id,
     orderNo: order.orderNo,
@@ -57,6 +60,8 @@ export async function GET(_request: Request, context: RouteContext) {
     logisticsCompany: order.logisticsCompany,
     lineCount: order.lines.length,
     unmappedLineCount,
+    mappedLineCount,
+    excludedLineCount,
     storeName: order.store?.name ?? "",
     country: order.country,
     recipientName: order.recipientName,
@@ -71,11 +76,12 @@ export async function GET(_request: Request, context: RouteContext) {
       platformSpu: line.platformSpu,
       productName: line.productName,
       spec: line.spec,
+      articleNo: line.articleNo,
       quantity: line.quantity,
       price: line.price ? Number(line.price) : null,
       mappingStatus: line.mappingStatus,
-      internalSku:
-        line.sheinMapping?.internalProduct?.internalSku ?? line.sku?.code ?? null,
+      internalProductId:
+        line.sheinMapping?.internalProduct?.id ?? line.sheinMapping?.internalProductId ?? null,
     })),
   };
 

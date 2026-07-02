@@ -7,14 +7,14 @@ import { useState } from "react";
 
 function importResultDescription(result: OrderImportResult) {
   if (result.unmapped === 0) {
-    return "所有订单行均已匹配已有 SKU 映射。";
+    return "所有订单行均已匹配已有平台 SKU 映射。";
   }
 
-  if (result.newSellerSkus.length > 0) {
-    return `待绑定卖家 SKU：${result.newSellerSkus.slice(0, 5).join("、")}${result.newSellerSkus.length > 5 ? "…" : ""}`;
+  if (result.unmappedPlatformSkus.length > 0) {
+    return `未匹配的平台 SKU：${result.unmappedPlatformSkus.slice(0, 5).join("、")}${result.unmappedPlatformSkus.length > 5 ? "…" : ""}`;
   }
 
-  return `有 ${result.unmapped} 行待绑定，将按卖家 SKU / 平台 SKU 展示在待绑定列表。`;
+  return `有 ${result.unmapped} 行待绑定，将按平台 SKU 展示在待绑定列表。`;
 }
 
 export function ImportTab({
@@ -110,7 +110,7 @@ export function ImportTab({
         ) : (
           <EmptyBlock
             icon={<ClipboardList size={22} />}
-            text="匹配键为卖家 SKU（自定义）或平台 SKU，均为全局唯一。平台 SKC 仅作款式/颜色参考。"
+            text="先维护平台 SKU 映射，导入时按平台 SKU 自动匹配。"
             title="尚未导入订单"
           />
         )}
@@ -126,7 +126,7 @@ export function ImportTab({
     <div className="page-stack">
       <PageHeader
         action={<span />}
-        description="上传 SHEIN 订单 Excel，系统按卖家 SKU / 平台 SKU 自动匹配已有映射；未匹配的商品会进入「待绑定商品」页。"
+        description="上传 SHEIN 订单 Excel，系统按平台 SKU 自动匹配；未完成的映射会进入「待绑定商品」页。"
         title="SHEIN 订单导入"
       />
       {content}

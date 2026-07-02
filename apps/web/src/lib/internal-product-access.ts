@@ -89,15 +89,6 @@ export async function findInternalProductsForSession(session: Session) {
   `;
 }
 
-export async function findAccessibleInternalProductBySku(session: Session, internalSku: string) {
-  const product = await prisma.internalProduct.findUnique({ where: { internalSku } });
-  const access = await checkInternalProductAccess(session, product);
-  if (!access.ok) {
-    return { error: access.error };
-  }
-  return { product: product! };
-}
-
 export async function findAccessibleInternalProductById(session: Session, id: string) {
   const product = await prisma.internalProduct.findUnique({ where: { id } });
   const access = await checkInternalProductAccess(session, product);

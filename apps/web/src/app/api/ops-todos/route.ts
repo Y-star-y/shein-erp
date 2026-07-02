@@ -38,16 +38,17 @@ export async function GET() {
   ]);
 
   const tasks: OpsTodoTaskSummary[] = [
-    {
-      id: "order_bind",
-      title: "待绑定商品",
-      description:
-        groups.length > 0
-          ? `${groups.length} 个 SKU 待绑定`
-          : "订单导入后未匹配的商品需绑定内部 SKU",
-      count: groups.length,
-      implemented: true,
-    },
+    ...(groups.length > 0
+      ? [
+          {
+            id: "order_bind" as const,
+            title: "待绑定商品",
+            description: `${groups.length} 个 SKU 待绑定`,
+            count: groups.length,
+            implemented: true,
+          },
+        ]
+      : []),
     {
       id: "pending_ship",
       title: "待发货",

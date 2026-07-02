@@ -1,6 +1,14 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import type {
   CompanySku,
   ConfirmState,
@@ -38,6 +46,7 @@ export type ErpStore = {
   setMappingStatusFilter: (status: string) => void;
   activeCompanySkus: CompanySku[];
   incompleteSkus: CompanySku[];
+  refreshMasterData: () => Promise<void>;
 };
 
 const ErpContext = createContext<ErpStore | null>(null);
@@ -72,32 +81,23 @@ export function ErpProvider({
     localStorage.removeItem(LEGACY_MAINTENANCE_EVENT_STORAGE_KEY);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
+  const refreshMasterData = useCallback(async () => {
+    try {
+      const masterResponse = await fetch("/api/master-data", { cache: "no-store" });
+      if (!masterResponse.ok) throw new Error("Failed to load master data");
 
-    async function loadMasterData() {
-      try {
-        const masterResponse = await fetch("/api/master-data", { cache: "no-store" });
-        if (!masterResponse.ok) throw new Error("Failed to load master data");
-
-        const masterData = (await masterResponse.json()) as MasterDataResponse;
-        if (cancelled) return;
-
-        setCompanySkus(masterData.companySkus.map(normalizeCompanySku));
-        setMappings(masterData.mappings.map(normalizeMapping));
-      } catch {
-        if (!cancelled) {
-          setCompanySkus([]);
-          setMappings([]);
-        }
-      }
+      const masterData = (await masterResponse.json()) as MasterDataResponse;
+      setCompanySkus(masterData.companySkus.map(normalizeCompanySku));
+      setMappings(masterData.mappings.map(normalizeMapping));
+    } catch {
+      setCompanySkus([]);
+      setMappings([]);
     }
-
-    void loadMasterData();
-    return () => {
-      cancelled = true;
-    };
   }, [normalizeCompanySku, normalizeMapping]);
+
+  useEffect(() => {
+    void refreshMasterData();
+  }, [refreshMasterData]);
 
   function pushToast(type: Toast["type"], message: string) {
     const toast = { id: `toast-${Date.now()}-${Math.random()}`, type, message };
@@ -132,6 +132,7 @@ export function ErpProvider({
     setMappingStatusFilter,
     activeCompanySkus,
     incompleteSkus,
+    refreshMasterData,
   };
 
   return <ErpContext.Provider value={value}>{children}</ErpContext.Provider>;

@@ -6,12 +6,13 @@ const aliases: Record<string, string[]> = {
   createdAt: ["订单创建时间"],
   shipBy: ["要求发货时间", "最晚发货时间"],
   deliverBy: ["要求签收时间"],
-  sellerSku: ["卖家SKU"],
+  sellerSku: ["卖家SKU", "seller sku", "sellerSku", "商品SKU"],
   platformSku: ["平台SKU"],
   platformSkc: ["平台SKC", "平台skc", "平台Skc"],
   platformSpu: ["平台SPU", "平台spu", "平台Spu"],
   productName: ["商品名称"],
   spec: ["规格"],
+  articleNo: ["货号"],
   price: ["商品价格"],
   currency: ["币种"],
   country: ["国家/地区", "国家"],
@@ -98,6 +99,8 @@ const sheinColumnAliases = {
   recipientAddress3: ["用户地址3", "收件人地址3", "地址3"],
   recipientPostalCode: ["收件人邮编", "邮编", "邮政编码", "postcode", "zip"],
   productName: ["商品名称", "产品名称", "商品品名"],
+  spec: ["规格"],
+  articleNo: ["货号"],
   orderCreatedAt: ["订单创建时间", "创建时间", "下单时间"],
   shipBy: ["要求发货时间", "最晚发货时间"],
   deliverBy: ["要求签收时间"],
@@ -178,7 +181,6 @@ function findSheinHeaderRow(rows: unknown[][]) {
     const headers = row.map(text);
     const productNameIndex = findColumnIndex(headers, sheinColumnAliases.productName);
     const skuIndex = [
-      ...sheinColumnAliases.sellerSku,
       ...sheinColumnAliases.platformSku,
       ...sheinColumnAliases.platformSkc,
       ...sheinColumnAliases.platformSpu,
@@ -227,6 +229,7 @@ export async function parseSheinOrderImportExcel(file: File): Promise<ParsedShei
       platformSpu: String(value(row, "platformSpu") || "").trim(),
       productName: String(value(row, "productName") || ""),
       spec: String(value(row, "spec") || ""),
+      articleNo: String(value(row, "articleNo") || "").trim(),
       quantity: numberValue(value(row, "quantity")) || 1,
       price: Number(value(row, "price") || 0),
       currency: String(value(row, "currency") || ""),
@@ -241,13 +244,13 @@ export async function parseSheinOrderImportExcel(file: File): Promise<ParsedShei
       recipientAddress: String(value(row, "recipientAddress") || "").trim(),
       recipientPostalCode: String(value(row, "recipientPostalCode") || "").trim(),
     }))
-    .filter((row) => row.orderNo && (row.sellerSku || row.platformSku));
+    .filter((row) => row.orderNo && row.platformSku);
 }
 
 function parseSheinOrderImportFromMatrix(rows: unknown[][]): ParsedSheinOrderLine[] {
   const headerRowIndex = findSheinHeaderRow(rows);
   if (headerRowIndex < 0) {
-    throw new Error("未找到 SHEIN 订单表头，请确认文件包含“卖家SKU/平台SKU”和“商品名称”等列。");
+    throw new Error("未找到 SHEIN 订单表头，请确认文件包含「平台SKU」和「商品名称」等列。");
   }
 
   const headers = rows[headerRowIndex].map(text);
@@ -256,9 +259,11 @@ function parseSheinOrderImportFromMatrix(rows: unknown[][]): ParsedSheinOrderLin
   const platformSkcIndex = findColumnIndex(headers, sheinColumnAliases.platformSkc);
   const platformSpuIndex = findColumnIndex(headers, sheinColumnAliases.platformSpu);
   const productNameIndex = findColumnIndex(headers, sheinColumnAliases.productName);
+  const specIndex = findColumnIndex(headers, sheinColumnAliases.spec);
+  const articleNoIndex = findColumnIndex(headers, sheinColumnAliases.articleNo);
 
-  if (productNameIndex < 0 || [sellerSkuIndex, platformSkuIndex, platformSkcIndex, platformSpuIndex].every((index) => index < 0)) {
-    throw new Error("SHEIN 订单缺少核心列：至少需要“商品名称”和一个 SKU 列。");
+  if (productNameIndex < 0 || platformSkuIndex < 0) {
+    throw new Error("SHEIN 订单缺少核心列：需要“商品名称”和“平台SKU”。");
   }
 
   return rows
@@ -282,7 +287,8 @@ function parseSheinOrderImportFromMatrix(rows: unknown[][]): ParsedSheinOrderLin
         platformSkc,
         platformSpu,
         productName: readCell(row, productNameIndex),
-        spec: "",
+        spec: readCell(row, specIndex),
+        articleNo: readCell(row, articleNoIndex),
         quantity: numberValue(quantityText) || 1,
         price: 0,
         currency: "",
@@ -295,7 +301,7 @@ function parseSheinOrderImportFromMatrix(rows: unknown[][]): ParsedSheinOrderLin
         ...recipient,
       };
     })
-    .filter((row) => row.orderNo && (row.sellerSku || row.platformSku));
+    .filter((row) => row.orderNo && row.platformSku);
 }
 
 export async function parseSheinOrderMappingExcel(file: File): Promise<SheinOrderMappingResult> {
@@ -314,7 +320,7 @@ export async function parseSheinOrderMappingExcel(file: File): Promise<SheinOrde
   const headerRowIndex = findSheinHeaderRow(target.rows);
 
   if (headerRowIndex < 0) {
-    throw new Error("未找到 SHEIN 订单表头，请确认文件包含“卖家SKU/平台SKU”和“商品名称”等列。");
+    throw new Error("未找到 SHEIN 订单表头，请确认文件包含「平台SKU」和「商品名称」等列。");
   }
 
   const headers = target.rows[headerRowIndex].map(text);
@@ -323,9 +329,11 @@ export async function parseSheinOrderMappingExcel(file: File): Promise<SheinOrde
   const platformSkcIndex = findColumnIndex(headers, sheinColumnAliases.platformSkc);
   const platformSpuIndex = findColumnIndex(headers, sheinColumnAliases.platformSpu);
   const productNameIndex = findColumnIndex(headers, sheinColumnAliases.productName);
+  const specIndex = findColumnIndex(headers, sheinColumnAliases.spec);
+  const articleNoIndex = findColumnIndex(headers, sheinColumnAliases.articleNo);
 
-  if (productNameIndex < 0 || [sellerSkuIndex, platformSkuIndex, platformSkcIndex, platformSpuIndex].every((index) => index < 0)) {
-    throw new Error("SHEIN 订单缺少核心列：至少需要“商品名称”和一个 SKU 列。");
+  if (productNameIndex < 0 || platformSkuIndex < 0) {
+    throw new Error("SHEIN 订单缺少核心列：需要“商品名称”和“平台SKU”。");
   }
 
   const dataRows = target.rows

@@ -1,3 +1,4 @@
+import { applyOrderListScope, lineNeedsInternalProductBinding, unresolvedBindingLineWhere } from "@/lib/order-scope";
 import { canAccessModule } from "@/lib/permissions";
 import { getSessionOr401 } from "@/lib/auth-helpers";
 import { findAccessibleStore, ordersWhereForSession } from "@/lib/store-access";
@@ -26,6 +27,7 @@ export async function GET(request: Request) {
   const statusParam = url.searchParams.get("status")?.trim();
   const statusesParam = url.searchParams.get("statuses")?.trim();
   const hasUnmapped = url.searchParams.get("hasUnmapped") === "true";
+  const scope = url.searchParams.get("scope")?.trim();
   const q = url.searchParams.get("q")?.trim();
 
   if (!storeId) {
@@ -46,20 +48,34 @@ export async function GET(request: Request) {
       ? [statusParam as OrderStatus]
       : null;
 
-  const where = {
-    ...ordersWhereForSession(session),
-    storeId,
-    ...(statusFilter?.length ? { status: { in: statusFilter } } : {}),
-    ...(hasUnmapped ? { lines: { some: { mappingStatus: "unmapped" as const } } } : {}),
-    ...(q ? { orderNo: { contains: q, mode: "insensitive" as const } } : {}),
-  };
+  const where = applyOrderListScope(
+    {
+      ...ordersWhereForSession(session),
+      storeId,
+      ...(statusFilter?.length ? { status: { in: statusFilter } } : {}),
+      ...(hasUnmapped ? { lines: { some: unresolvedBindingLineWhere } } : {}),
+      ...(q ? { orderNo: { contains: q, mode: "insensitive" as const } } : {}),
+    },
+    scope,
+  );
 
   const [orders, total] = await Promise.all([
     prisma.order.findMany({
       where,
       include: {
         store: { select: { name: true } },
-        lines: { select: { mappingStatus: true } },
+        lines: {
+          select: {
+            mappingStatus: true,
+            sheinMappingId: true,
+            sheinMapping: {
+              select: {
+                status: true,
+                internalProductId: true,
+              },
+            },
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * pageSize,
@@ -68,20 +84,28 @@ export async function GET(request: Request) {
     prisma.order.count({ where }),
   ]);
 
-  const summaries: StoreOrderSummary[] = orders.map((order) => ({
-    id: order.id,
-    orderNo: order.orderNo,
-    createdAt: order.createdAt.toISOString(),
-    shipBy: order.shipBy?.toISOString() ?? null,
-    deliverBy: order.deliverBy?.toISOString() ?? null,
-    status: order.status,
-    platformStatus: order.platformStatus,
-    logisticsNo: order.logisticsNo,
-    logisticsCompany: order.logisticsCompany,
-    lineCount: order.lines.length,
-    unmappedLineCount: order.lines.filter((line) => line.mappingStatus === "unmapped").length,
-    storeName: order.store?.name ?? store.name,
-  }));
+  const summaries: StoreOrderSummary[] = orders.map((order) => {
+    const unmappedLineCount = order.lines.filter(lineNeedsInternalProductBinding).length;
+    const excludedLineCount = order.lines.filter((line) => line.mappingStatus === "excluded").length;
+    const mappedLineCount = order.lines.length - unmappedLineCount - excludedLineCount;
+
+    return {
+      id: order.id,
+      orderNo: order.orderNo,
+      createdAt: order.createdAt.toISOString(),
+      shipBy: order.shipBy?.toISOString() ?? null,
+      deliverBy: order.deliverBy?.toISOString() ?? null,
+      status: order.status,
+      platformStatus: order.platformStatus,
+      logisticsNo: order.logisticsNo,
+      logisticsCompany: order.logisticsCompany,
+      lineCount: order.lines.length,
+      unmappedLineCount,
+      mappedLineCount,
+      excludedLineCount,
+      storeName: order.store?.name ?? store.name,
+    };
+  });
 
   const response: StoreOrdersListResponse = {
     orders: summaries,

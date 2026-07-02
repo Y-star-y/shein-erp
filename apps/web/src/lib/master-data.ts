@@ -21,7 +21,6 @@ function text(value: unknown) {
 export function toCompanySku(product: InternalProductRecord): CompanySku {
   return {
     id: product.id,
-    internalSku: product.internalSku,
     companyName: text(product.companyName),
     attributes: productAttributesForClient(normalizeProductAttributes(product.attributes)),
     status: product.status,
@@ -35,7 +34,7 @@ export function toPlatformSkuMapping(mapping: MappingWithStore): PlatformSkuMapp
     id: mapping.id,
     platform: mapping.platform,
     storeName: mapping.store.name,
-    internalSku: mapping.internalProduct?.internalSku || "",
+    internalProductId: mapping.internalProductId || mapping.internalProduct?.id || "",
     platformSkc: text(mapping.platformSkc),
     platformSku: text(mapping.platformSku),
     sheinProductId: text(mapping.sheinProductId),

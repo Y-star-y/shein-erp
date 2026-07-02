@@ -6,6 +6,30 @@ import { Search, Store } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { OwnerStoreGroup } from "./types";
 
+function storeTaskCount(
+  storeId: string,
+  unmappedCounts: Record<string, number>,
+  pendingShipCounts: Record<string, number>,
+) {
+  return (unmappedCounts[storeId] ?? 0) + (pendingShipCounts[storeId] ?? 0);
+}
+
+function sortStoresByTasks(
+  stores: StoreRecord[],
+  unmappedCounts: Record<string, number>,
+  pendingShipCounts: Record<string, number>,
+) {
+  return [...stores].sort((a, b) => {
+    const tasksA = storeTaskCount(a.id, unmappedCounts, pendingShipCounts);
+    const tasksB = storeTaskCount(b.id, unmappedCounts, pendingShipCounts);
+    const hasTasksA = tasksA > 0;
+    const hasTasksB = tasksB > 0;
+    if (hasTasksA !== hasTasksB) return hasTasksA ? -1 : 1;
+    if (tasksB !== tasksA) return tasksB - tasksA;
+    return a.name.localeCompare(b.name, "zh-CN");
+  });
+}
+
 function StoreCard({
   store,
   unmappedCount,
@@ -30,7 +54,7 @@ function StoreCard({
         <span className="store-card__name">{store.name}</span>
         <span className="store-card__badges">
           {unmappedCount > 0 ? (
-            <Badge count={unmappedCount} size="small" title="待绑定商品" />
+            <Badge count={unmappedCount} size="small" title="异常订单（待绑定）" />
           ) : null}
           {pendingShipCount > 0 ? (
             <Badge count={pendingShipCount} size="small" color="orange" title="待发货" />
@@ -100,10 +124,15 @@ export function StoreListPanel({
     );
   }, [stores, query]);
 
+  const sortedStores = useMemo(
+    () => sortStoresByTasks(filteredStores, unmappedCounts, pendingShipCounts),
+    [filteredStores, pendingShipCounts, unmappedCounts],
+  );
+
   const ownerGroups = useMemo<OwnerStoreGroup[]>(() => {
     const grouped = new Map<string, OwnerStoreGroup>();
 
-    for (const store of filteredStores) {
+    for (const store of sortedStores) {
       const ownerId = store.ownerId ?? "unknown";
       const existing = grouped.get(ownerId);
       if (existing) {
@@ -121,10 +150,24 @@ export function StoreListPanel({
     return Array.from(grouped.values())
       .map((group) => ({
         ...group,
-        stores: [...group.stores].sort((a, b) => a.name.localeCompare(b.name, "zh-CN")),
+        stores: sortStoresByTasks(group.stores, unmappedCounts, pendingShipCounts),
       }))
-      .sort((a, b) => a.ownerName.localeCompare(b.ownerName, "zh-CN"));
-  }, [filteredStores]);
+      .sort((a, b) => {
+        const tasksA = a.stores.reduce(
+          (sum, store) => sum + storeTaskCount(store.id, unmappedCounts, pendingShipCounts),
+          0,
+        );
+        const tasksB = b.stores.reduce(
+          (sum, store) => sum + storeTaskCount(store.id, unmappedCounts, pendingShipCounts),
+          0,
+        );
+        const hasTasksA = tasksA > 0;
+        const hasTasksB = tasksB > 0;
+        if (hasTasksA !== hasTasksB) return hasTasksA ? -1 : 1;
+        if (tasksB !== tasksA) return tasksB - tasksA;
+        return a.ownerName.localeCompare(b.ownerName, "zh-CN");
+      });
+  }, [sortedStores, pendingShipCounts, unmappedCounts]);
 
   const collapseItems = useMemo(
     () =>
@@ -172,7 +215,7 @@ export function StoreListPanel({
           ) : (
             <StoreCardGrid
               pendingShipCounts={pendingShipCounts}
-              stores={filteredStores}
+              stores={sortedStores}
               unmappedCounts={unmappedCounts}
               onOpen={onOpenStore}
             />

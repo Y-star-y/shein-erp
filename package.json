@@ -11,6 +11,7 @@
     "seed:excel": "python3 scripts/extract_reference.py",
     "db:generate": "pnpm --filter @shein-erp/web db:generate",
     "db:migrate": "pnpm --filter @shein-erp/web db:migrate",
+    "db:deploy": "pnpm --filter @shein-erp/web db:deploy",
     "db:seed": "pnpm --filter @shein-erp/web db:seed"
   }
 }

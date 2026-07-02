@@ -118,6 +118,7 @@ export type ParsedSheinOrderLine = {
   platformSpu: string;
   productName: string;
   spec: string;
+  articleNo: string;
   quantity: number;
   price: number;
   currency: string;

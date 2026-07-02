@@ -18,17 +18,19 @@ export type OpsTodosResponse = {
   tasks: OpsTodoTaskSummary[];
 };
 
-export type OrderQuickFilter = "all" | "unmapped" | "pending_ship" | "shipped";
+export type OrderQuickFilter = "all" | "pending_ship" | "shipped" | "unmapped";
 
 export type StoreDetailTab =
   | "orders"
-  | "inventory"
+  | "binding"
   | "exceptions"
+  | "finance"
+  | "history"
   | "settings"
   | "shipping"
   | "aftersales"
-  /** @deprecated 已合并至订单管理 */
-  | "binding";
+  /** @deprecated 店铺详情已移除库存管理 Tab */
+  | "inventory";
 
 export type StoreOpenTarget = {
   storeId: string;

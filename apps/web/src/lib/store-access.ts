@@ -52,6 +52,15 @@ export async function findAccessibleStore(session: Session, storeId: string) {
   });
 }
 
+export async function findAccessibleStoresForSession(session: Session) {
+  const includeOwner = isStoreAdmin(session);
+  return prisma.store.findMany({
+    where: storesWhereForSession(session),
+    orderBy: [{ name: "asc" }, { updatedAt: "desc" }],
+    include: includeOwner ? { owner: { select: ownerSelect } } : undefined,
+  });
+}
+
 export async function resolveOrCreateStore(session: Session, storeName: string, platform: string) {
   const ownerId = storeOwnerIdForCreate(session);
   const name = storeName.trim();

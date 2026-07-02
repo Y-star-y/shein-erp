@@ -25,6 +25,7 @@ enum AppModule {
   orderManagement
   platformMappings
   warehouseManagement
+  warehouseAdmin
   companyManagement
   userManagement
 }
@@ -76,6 +77,20 @@ enum OrderLineMappingStatus {
   excluded
 }
 
+enum InternalProductInventoryDirection {
+  IN
+  OUT
+}
+
+enum InternalProductInventorySource {
+  BATCH_PURCHASE
+  PURCHASE_INBOUND
+  BORROW_INBOUND
+  SALES_OUTBOUND
+  ADJUST_IN
+  ADJUST_OUT
+}
+
 model Company {
   id        String   @id @default(cuid())
   name      String   @unique
@@ -112,6 +127,7 @@ model User {
   ownedStores   Store[]
   importJobs    ImportJob[]
   passwordResetTokens PasswordResetToken[]
+  internalProductInventoryLogs InternalProductInventoryLog[]
 
   @@index([companyId])
 }
@@ -135,14 +151,17 @@ model Account {
 }
 
 model Warehouse {
-  id        String @id @default(cuid())
-  code      String @unique
+  id        String   @id @default(cuid())
+  code      String   @unique
   name      String
-  active    Boolean @default(true)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   stocks    StockBalance[]
   shipments Shipment[]
   receipts  Receipt[]
   movements StockMovement[]
+  internalProductInventoryLogs InternalProductInventoryLog[]
 }
 
 model Store {
@@ -164,7 +183,6 @@ model Store {
 
 model InternalProduct {
   id           String   @id @default(cuid())
-  internalSku  String   @unique
   companyName  String   @default("")
   attributes   Json     @default("[]")
   status       InternalProductStatus @default(active)
@@ -173,6 +191,7 @@ model InternalProduct {
 
   sheinMappings            SheinProductMapping[]
   storeInventoryWarnings   StoreProductInventoryWarning[]
+  inventoryLogs            InternalProductInventoryLog[]
 }
 
 model StoreProductInventoryWarning {
@@ -442,4 +461,27 @@ model LoginCaptcha {
   codeHash  String
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+model InternalProductInventoryLog {
+  id                String @id @default(cuid())
+  internalProductId String
+  direction         InternalProductInventoryDirection
+  source            InternalProductInventorySource
+  quantity          Int
+  logisticsNo       String?
+  warehouseId       String?
+  batchNo           String?
+  referenceNo       String?
+  remark            String?
+  createdById       String?
+  createdAt         DateTime @default(now())
+
+  internalProduct InternalProduct @relation(fields: [internalProductId], references: [id], onDelete: Cascade)
+  warehouse       Warehouse? @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  createdBy       User? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([internalProductId, createdAt])
+  @@index([logisticsNo])
+  @@index([batchNo])
 }

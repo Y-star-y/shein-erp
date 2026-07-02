@@ -1,24 +1,43 @@
 "use client";
 
-import type { OrderQuickFilter, StoreDetailTab, StoreRecord, UnmappedOrderLine } from "@shein-erp/shared";
+import type { StoreDetailTab, StoreRecord, UnmappedOrderLine, UnmappedSkcGroup } from "@shein-erp/shared";
 import { readJsonResponse } from "@/lib/api-response";
+import { EmptyBlock } from "@shein-erp/shared";
 import { Tabs, Tag } from "antd";
+import type { LucideIcon } from "lucide-react";
+import {
+  AlertTriangle,
+  ClipboardList,
+  Construction,
+  History,
+  Link2,
+  Settings,
+  Wallet,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { StoreExceptionOrdersTab } from "./store-exception-orders-tab";
-import { StoreInventoryTab } from "./store-inventory-tab";
 import { StoreOrdersTab } from "./store-orders-tab";
+import { StoreProductBindTab } from "./store-product-bind-tab";
 import { StoreSettingsTab } from "./store-settings-tab";
 
 type StoreTabCounts = {
   orders: number;
   binding: number;
-  inventory: number;
   exceptions: number;
 };
 
-function TabLabelWithDot({ label, showDot }: { label: string; showDot: boolean }) {
+function TabLabel({
+  icon: Icon,
+  label,
+  showDot = false,
+}: {
+  icon: LucideIcon;
+  label: string;
+  showDot?: boolean;
+}) {
   return (
     <span className="tab-indicator-segment">
+      <Icon size={15} aria-hidden />
       {label}
       {showDot ? <span className="tab-indicator-dot" aria-hidden /> : null}
     </span>
@@ -26,9 +45,22 @@ function TabLabelWithDot({ label, showDot }: { label: string; showDot: boolean }
 }
 
 function resolveTab(tab: StoreDetailTab): StoreDetailTab {
-  if (tab === "shipping" || tab === "binding") return "orders";
+  if (tab === "shipping") return "orders";
+  if (tab === "inventory") return "orders";
   if (tab === "aftersales") return "exceptions";
   return tab;
+}
+
+function toBindLine(group: UnmappedSkcGroup, storeName: string): UnmappedOrderLine {
+  return {
+    ...group,
+    storeName: group.storeName || storeName,
+    lineId: "",
+    orderNo: group.sampleOrderNo,
+    orderCreatedAt: null,
+    shipBy: null,
+    deliverBy: null,
+  };
 }
 
 export function StoreDetailPanel({
@@ -39,7 +71,6 @@ export function StoreDetailPanel({
   onImported,
   bindReloadKey = 0,
   activeTab = "orders",
-  ordersFilter = "all",
   onTabChange,
 }: {
   store: StoreRecord;
@@ -49,14 +80,12 @@ export function StoreDetailPanel({
   onImported?: () => void;
   bindReloadKey?: number;
   activeTab?: StoreDetailTab;
-  ordersFilter?: OrderQuickFilter;
   onTabChange?: (tab: string) => void;
 }) {
   const resolvedTab = resolveTab(activeTab);
   const [tabCounts, setTabCounts] = useState<StoreTabCounts>({
     orders: 0,
     binding: 0,
-    inventory: 0,
     exceptions: 0,
   });
 
@@ -68,11 +97,10 @@ export function StoreDetailPanel({
       setTabCounts({
         orders: data?.orders ?? 0,
         binding: data?.binding ?? 0,
-        inventory: data?.inventory ?? 0,
         exceptions: data?.exceptions ?? 0,
       });
     } catch {
-      setTabCounts({ orders: 0, binding: 0, inventory: 0, exceptions: 0 });
+      setTabCounts({ orders: 0, binding: 0, exceptions: 0 });
     }
   }, [store.id]);
 
@@ -80,25 +108,26 @@ export function StoreDetailPanel({
     void loadTabCounts();
   }, [loadTabCounts, bindReloadKey]);
 
+  const [importReloadKey, setImportReloadKey] = useState(0);
+
   const handleImported = useCallback(() => {
     void loadTabCounts();
+    setImportReloadKey((value) => value + 1);
     onImported?.();
   }, [loadTabCounts, onImported]);
+
+  const dataReloadKey = bindReloadKey + importReloadKey;
 
   const tabItems = useMemo(
     () => [
       {
         key: "orders",
         label: (
-          <TabLabelWithDot
-            label="订单管理"
-            showDot={tabCounts.orders > 0 || tabCounts.binding > 0}
-          />
+          <TabLabel icon={ClipboardList} label="订单管理" showDot={tabCounts.orders > 0} />
         ),
         children: (
           <StoreOrdersTab
             bindReloadKey={bindReloadKey}
-            initialOrdersFilter={ordersFilter}
             store={store}
             onBind={onBind}
             onImported={handleImported}
@@ -106,34 +135,68 @@ export function StoreDetailPanel({
         ),
       },
       {
-        key: "inventory",
-        label: <TabLabelWithDot label="库存管理" showDot={tabCounts.inventory > 0} />,
-        children: <StoreInventoryTab storeId={store.id} />,
+        key: "binding",
+        label: <TabLabel icon={Link2} label="绑定产品" showDot={tabCounts.binding > 0} />,
+        children: (
+          <StoreProductBindTab
+            reloadKey={dataReloadKey}
+            store={store}
+            onBind={onBind ? (group) => onBind(toBindLine(group, store.name)) : undefined}
+          />
+        ),
       },
       {
         key: "exceptions",
-        label: <TabLabelWithDot label="异常订单" showDot={tabCounts.exceptions > 0} />,
-        children: <StoreExceptionOrdersTab storeId={store.id} />,
+        label: (
+          <TabLabel icon={AlertTriangle} label="异常订单" showDot={tabCounts.exceptions > 0} />
+        ),
+        children: (
+          <StoreExceptionOrdersTab
+            bindReloadKey={dataReloadKey}
+            store={store}
+            onBind={onBind}
+          />
+        ),
+      },
+      {
+        key: "finance",
+        label: <TabLabel icon={Wallet} label="财务管理" />,
+        children: (
+          <EmptyBlock
+            icon={<Construction size={22} />}
+            title="功能开发中"
+            text="财务管理功能即将上线。"
+          />
+        ),
+      },
+      {
+        key: "history",
+        label: <TabLabel icon={History} label="历史订单" />,
+        children: (
+          <EmptyBlock
+            icon={<Construction size={22} />}
+            title="功能开发中"
+            text="历史订单功能即将上线。"
+          />
+        ),
       },
       {
         key: "settings",
-        label: "店铺设置",
+        label: <TabLabel icon={Settings} label="店铺设置" />,
         children: (
           <StoreSettingsTab store={store} onDeleted={onDeleted} onUpdated={onUpdated} />
         ),
       },
     ],
     [
-      bindReloadKey,
+      dataReloadKey,
       handleImported,
       onBind,
       onDeleted,
       onUpdated,
-      ordersFilter,
       store,
       tabCounts.binding,
       tabCounts.exceptions,
-      tabCounts.inventory,
       tabCounts.orders,
     ],
   );

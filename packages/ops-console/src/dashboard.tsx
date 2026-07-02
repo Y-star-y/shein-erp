@@ -64,7 +64,7 @@ export function OpsConsolePage({
           <span className="eyebrow">运营工作台</span>
           <h2>先把商品映射基础资料打稳</h2>
           <p>
-            内部商品是真实库存商品；订单匹配与映射以平台 SKU / 卖家 SKU 为唯一键，平台 SKC 仅作款式/颜色参考。
+            内部商品是真实库存商品；订单匹配以平台 SKU 为唯一键，请先维护平台 SKU 映射。
           </p>
         </div>
         {(canCreateCompanySku || canCreateMapping) && (
@@ -103,7 +103,7 @@ export function OpsConsolePage({
               {incompleteSkus.slice(0, 8).map((item) => (
                 <Button className="mini-row" key={item.id} onClick={() => onJump("productManagement")}>
                   <span>
-                    <strong>{item.internalSku}</strong>
+                    <strong>{item.id}</strong>
                     <em>{getProductDisplayName(item)}</em>
                   </span>
                   <StatusTag value="待完善" tone="warning" />

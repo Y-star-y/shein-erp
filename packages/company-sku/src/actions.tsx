@@ -1,6 +1,6 @@
 "use client";
 
-import { nowText, useErpStore, type CompanySku, type CompanySkuStatus } from "@shein-erp/shared";
+import { nowText, useErpStore, getProductDisplayName, type CompanySku, type CompanySkuStatus, type OrderBindResumeContext } from "@shein-erp/shared";
 import { normalizeProductAttributes } from "@shein-erp/shared";
 import { useCallback } from "react";
 import { createCompanySku, normalizeCompanySku, validateCompanySku } from "./model";
@@ -33,6 +33,10 @@ export function useCompanySkuActions() {
         companyName?: string | null;
         allowCompanyEdit?: boolean;
         allowEmployeeAccountEdit?: boolean;
+        productName?: string;
+        spec?: string;
+        articleNo?: string;
+        resume?: OrderBindResumeContext;
       },
     ) => {
       if (mode === "create") {
@@ -40,8 +44,13 @@ export function useCompanySkuActions() {
           setModal({
             type: "company",
             mode,
-            value: createCompanySku(),
+            value: createCompanySku({
+              productName: options.productName,
+              spec: options.spec,
+              articleNo: options.articleNo,
+            }),
             errors: {},
+            resume: options.resume,
           });
           return;
         }
@@ -69,8 +78,12 @@ export function useCompanySkuActions() {
           mode,
           value: createCompanySku({
             companyName: resolvedCompanyName,
+            productName: options?.productName,
+            spec: options?.spec,
+            articleNo: options?.articleNo,
           }),
           errors: {},
+          resume: options?.resume,
         });
         return;
       }
@@ -114,6 +127,15 @@ export function useCompanySkuActions() {
               ? [persisted, ...current]
               : current.map((item) => (item.id === persisted.id ? persisted : item)),
           );
+          if (modal.resume?.type === "orderBind") {
+            pushToast("success", "内部商品已新增，请确认绑定");
+            setModal({
+              type: "orderBind",
+              value: { ...modal.resume.value, internalProductId: persisted.id },
+              errors: {},
+            });
+            return;
+          }
           pushToast("success", modal.mode === "create" ? "内部商品已新增" : "内部商品已保存");
           setModal(null);
         })
@@ -129,7 +151,7 @@ export function useCompanySkuActions() {
       const action = status === "active" ? "启用" : "停用";
       setConfirm({
         title: `${action}内部商品`,
-        description: `确认${action}「${item.internalSku}」吗？${status === "inactive" ? "停用后不能再被新 SHEIN 映射选择。" : ""}`,
+        description: `确认${action}「${getProductDisplayName(item)}」吗？${status === "inactive" ? "停用后不能再被新 SHEIN 映射选择。" : ""}`,
         confirmText: action,
         tone: status === "inactive" ? "danger" : "primary",
         onConfirm: () => {
@@ -153,7 +175,7 @@ export function useCompanySkuActions() {
     (item: CompanySku) => {
       setConfirm({
         title: "删除内部商品",
-        description: `确认删除「${item.internalSku}」吗？已有 SHEIN 映射会保留，但会显示内部商品不存在。`,
+        description: `确认删除「${getProductDisplayName(item)}」吗？已有 SHEIN 映射会保留，但会显示内部商品不存在。`,
         confirmText: "删除",
         tone: "danger",
         onConfirm: () => {

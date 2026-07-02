@@ -22,8 +22,8 @@ function ordersTarget(storeId: string): StoreOpenTarget {
   return { storeId, tab: "orders" };
 }
 
-function unmappedOrdersTarget(storeId: string): StoreOpenTarget {
-  return { storeId, tab: "orders", ordersFilter: "unmapped" };
+function bindingTarget(storeId: string): StoreOpenTarget {
+  return { storeId, tab: "binding" };
 }
 
 function jumpToTask(
@@ -37,7 +37,7 @@ function jumpToTask(
   }
   if (taskId === "order_bind") {
     const store = unmappedStores.find((row) => row.count > 0);
-    return store ? unmappedOrdersTarget(store.storeId) : null;
+    return store ? bindingTarget(store.storeId) : null;
   }
   return null;
 }

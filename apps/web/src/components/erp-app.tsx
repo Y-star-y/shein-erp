@@ -3,6 +3,7 @@
 import { NotificationBell } from "@/components/notification-bell";
 import { useNotifications } from "@/hooks/use-notifications";
 import { CompanyManagementPage } from "@/components/admin/company-management-page";
+import { WarehouseAdminPage } from "@/components/admin/warehouse-admin-page";
 import { UserManagementPage } from "@/components/admin/user-management-page";
 import { StoreManagementPage } from "@/components/admin/store-management-page";
 import { WarehouseManagementPage } from "@/components/admin/warehouse-management-page";
@@ -65,6 +66,7 @@ const allMenuSections = [
     items: [
       { key: "userManagement" as PageKey, title: "员工管理", icon: UserCog },
       { key: "companyManagement" as PageKey, title: "公司管理", icon: Building2 },
+      { key: "warehouseAdmin" as PageKey, title: "仓库管理", icon: Warehouse },
     ],
   },
 ];
@@ -212,6 +214,31 @@ function ErpShell() {
     });
   }, [companyActions, isAdmin, session?.user?.companyName]);
 
+  const openCreateProductFromBind = useCallback(() => {
+    if (modal?.type !== "orderBind") return;
+    companyActions.openCompanyModal("create", undefined, {
+      allowCompanyEdit: isAdmin,
+      allowEmployeeAccountEdit: isAdmin,
+      companyName: session?.user?.companyName,
+      productName: modal.value.sheinProductName,
+      spec: modal.value.spec,
+      articleNo: modal.value.articleNo,
+      resume: { type: "orderBind", value: modal.value },
+    });
+  }, [companyActions, isAdmin, modal, session?.user?.companyName]);
+
+  const closeModal = useCallback(() => {
+    if (modal?.type === "company" && modal.resume?.type === "orderBind") {
+      setModal({
+        type: "orderBind",
+        value: modal.resume.value,
+        errors: {},
+      });
+      return;
+    }
+    setModal(null);
+  }, [modal, setModal]);
+
   const openBindModal = useCallback(
     (group: Parameters<typeof orderBindingActions.openBindModal>[0]) => {
       orderBindingActions.openBindModal(group);
@@ -260,7 +287,7 @@ function ErpShell() {
                 <Input
                   className="search-shell"
                   prefix={<Search size={16} />}
-                  placeholder="搜索内部商品编码、公司名称、产品名称"
+                  placeholder="搜索关键词，或多字段 尺码:S, 颜色:红（冒号、逗号均支持中英文）"
                   value={companyQuery}
                   onChange={(event) => setCompanyQuery(event.target.value)}
                 />
@@ -329,6 +356,9 @@ function ErpShell() {
           {page === "companyManagement" && session?.user && canAccessModule(session.user, "companyManagement") && (
             <CompanyManagementPage />
           )}
+          {page === "warehouseAdmin" && session?.user && canAccessModule(session.user, "warehouseAdmin") && (
+            <WarehouseAdminPage />
+          )}
           {page === "userManagement" && session?.user && canAccessModule(session.user, "userManagement") && (
             <UserManagementPage />
           )}
@@ -337,7 +367,7 @@ function ErpShell() {
       </Layout>
 
       {modal?.type === "company" && (
-        <AppModal title={modal.mode === "create" ? "新增内部商品" : "编辑内部商品"} onClose={() => setModal(null)}>
+        <AppModal title={modal.mode === "create" ? "新增内部商品" : "编辑内部商品"} onClose={closeModal}>
           <CompanySkuForm
             allowCompanyEdit={isAdmin}
             allowEmployeeAccountEdit={isAdmin}
@@ -351,11 +381,12 @@ function ErpShell() {
         </AppModal>
       )}
       {modal?.type === "orderBind" && (
-        <AppModal title="绑定平台 SKU 到内部商品" onClose={() => setModal(null)}>
+        <AppModal title="绑定平台 SKU 到内部商品" onClose={closeModal}>
           <BindForm
             activeCompanySkus={activeCompanySkus}
             errors={modal.errors}
             onChange={orderBindingActions.updateBindValue}
+            onCreateProduct={openCreateProductFromBind}
             onSubmit={orderBindingActions.saveBind}
             value={modal.value}
           />

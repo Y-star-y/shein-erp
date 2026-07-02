@@ -88,13 +88,10 @@ export async function validatePlatformSkuUnique(platformSku: string, excludeMapp
   return { ok: true as const };
 }
 
-export async function validateMappingSkuKeys(sellerSku: string, platformSku: string, excludeMappingId?: string) {
-  if (!sellerSku.trim() && !platformSku.trim()) {
-    return { ok: false as const, error: "卖家 SKU 与平台 SKU 至少填写一项" };
+export async function validateMappingSkuKeys(_sellerSku: string, platformSku: string, excludeMappingId?: string) {
+  if (!platformSku.trim()) {
+    return { ok: false as const, error: "平台 SKU 不能为空" };
   }
-
-  const sellerValidation = await validateSellerSkuUnique(sellerSku, excludeMappingId);
-  if (!sellerValidation.ok) return sellerValidation;
 
   const platformValidation = await validatePlatformSkuUnique(platformSku, excludeMappingId);
   if (!platformValidation.ok) return platformValidation;

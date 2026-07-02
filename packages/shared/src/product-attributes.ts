@@ -8,6 +8,23 @@ export type { ProductAttribute, ProductAttributeType };
 
 export const DEFAULT_PRODUCT_ATTRIBUTES_CONFIG = "产品产地:TEXT,颜色:TEXT,尺码:TEXT";
 
+export const DEFAULT_MAX_PRODUCT_ATTRIBUTES = 30;
+
+export function getMaxProductAttributes() {
+  const configured =
+    typeof process !== "undefined" ? process.env.NEXT_PUBLIC_MAX_PRODUCT_ATTRIBUTES?.trim() : "";
+  if (!configured) {
+    return DEFAULT_MAX_PRODUCT_ATTRIBUTES;
+  }
+
+  const parsed = Number.parseInt(configured, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return DEFAULT_MAX_PRODUCT_ATTRIBUTES;
+  }
+
+  return parsed;
+}
+
 
 
 export const PRODUCT_NAME_ATTRIBUTE_KEY = "产品名称";
@@ -354,7 +371,7 @@ export function getProductAttributeString(attributes: ProductAttribute[], key: s
 
 
 
-export function getProductDisplayName(item: { internalSku: string; attributes: ProductAttribute[] }) {
+export function getProductDisplayName(item: { id: string; attributes: ProductAttribute[] }) {
 
   for (const key of DISPLAY_NAME_KEYS) {
 
@@ -376,8 +393,7 @@ export function getProductDisplayName(item: { internalSku: string; attributes: P
 
 
 
-  return item.internalSku;
-
+  return item.id;
 }
 
 
@@ -398,7 +414,7 @@ export function validateProductAttributes(
 
   attributes: ProductAttribute[],
 
-  options?: { requiredKeys?: string[] },
+  options?: { requiredKeys?: string[]; attributeCount?: number; maxCount?: number },
 
 ) {
 
@@ -407,6 +423,18 @@ export function validateProductAttributes(
   const seen = new Set<string>();
 
   const requiredKeys = new Set(options?.requiredKeys ?? []);
+
+  const maxCount = options?.maxCount ?? getMaxProductAttributes();
+
+  const attributeCount = options?.attributeCount ?? attributes.length;
+
+
+
+  if (attributeCount > maxCount) {
+
+    errors.form = `自定义参数最多 ${maxCount} 条`;
+
+  }
 
 
 

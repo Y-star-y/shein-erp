@@ -2,7 +2,7 @@ import { auditActorId, writeAuditLog } from "@/lib/audit-log";
 import { getSessionOr401 } from "@/lib/auth-helpers";
 import { canAccessMappings } from "@/lib/permissions";
 import { toPlatformSkuMapping } from "@/lib/master-data";
-import { findAccessibleInternalProductBySku } from "@/lib/internal-product-access";
+import { findAccessibleInternalProductById } from "@/lib/internal-product-access";
 import { prisma } from "@/lib/prisma";
 import { findAccessibleMapping, resolveOrCreateStore } from "@/lib/store-access";
 import type { PlatformSkuMapping } from "@shein-erp/shared";
@@ -11,14 +11,14 @@ import { NextResponse } from "next/server";
 
 async function resolveRefs(session: Session, body: Partial<PlatformSkuMapping>) {
   const storeName = body.storeName?.trim();
-  const internalSku = body.internalSku?.trim();
+  const internalProductId = body.internalProductId?.trim();
 
   const [store, productResult] = await Promise.all([
     storeName ? resolveOrCreateStore(session, storeName, body.platform?.trim() || "SHEIN") : Promise.resolve(null),
-    internalSku ? findAccessibleInternalProductBySku(session, internalSku) : Promise.resolve(null),
+    internalProductId ? findAccessibleInternalProductById(session, internalProductId) : Promise.resolve(null),
   ]);
 
-  if (internalSku && productResult && "error" in productResult) {
+  if (internalProductId && productResult && "error" in productResult) {
     const status = productResult.error === "内部商品不存在" ? 400 : 403;
     return { error: NextResponse.json({ error: productResult.error }, { status }) };
   }
@@ -45,26 +45,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const body = (await request.json()) as Partial<PlatformSkuMapping>;
   const refs = await resolveRefs(authResult.session, body);
   if ("error" in refs) return refs.error;
-
-  if (body.status === "active" || body.storeName || body.internalSku) {
-    const storeId = refs.store?.id || current.storeId;
-    const internalProductId = refs.product?.id || current.internalProductId;
-
-    if (internalProductId) {
-      const activeDuplicate = await prisma.sheinProductMapping.findFirst({
-        where: {
-          id: { not: id },
-          storeId,
-          internalProductId,
-          status: "active",
-        },
-      });
-
-      if (activeDuplicate && (body.status || current.status) === "active") {
-        return NextResponse.json({ error: "该店铺已经有这个内部商品的启用映射" }, { status: 409 });
-      }
-    }
-  }
 
   const mapping = await prisma.sheinProductMapping.update({
     where: { id },

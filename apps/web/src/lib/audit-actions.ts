@@ -55,6 +55,9 @@ const ACTION_SEVERITY: Record<string, AuditSeverity> = {
   绑定SHEIN订单SKU: "info",
   登记入库: "info",
   登记出库: "info",
+  采购入库: "info",
+  借货入库: "info",
+  批量采购: "info",
 
   登录成功: "notice",
   企业微信登录成功: "notice",
@@ -83,6 +86,7 @@ export function formatAuditDetail(detail: unknown): string | null {
 
   if (typeof record.email === "string") parts.push(record.email);
   if (typeof record.name === "string") parts.push(record.name);
+  if (typeof record.internalProductId === "string") parts.push(record.internalProductId);
   if (typeof record.internalSku === "string") parts.push(record.internalSku);
   if (typeof record.platformSkc === "string") parts.push(record.platformSkc);
   if (typeof record.sellerSku === "string") parts.push(record.sellerSku);

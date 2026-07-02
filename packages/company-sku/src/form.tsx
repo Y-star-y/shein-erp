@@ -49,7 +49,7 @@ export function CompanySkuForm({
   return (
     <form className="modal-form" noValidate onSubmit={onSubmit}>
       <FormSection layout="stack" title="内部商品">
-        <CopyableCodeField label="内部商品编码" value={value.internalSku} />
+        {mode === "edit" ? <CopyableCodeField label="内部商品 ID" value={value.id} /> : null}
         {allowCompanyEdit ? (
           <AppSelect
             error={errors.companyName}

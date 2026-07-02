@@ -32,6 +32,11 @@ export function getPrismaClientStaleMessage(): string | null {
     return "订单发货地址字段未生效：请先 Ctrl+C 停止 pnpm dev，在 apps/web 执行 pnpm exec prisma migrate deploy && pnpm db:generate，再重新 pnpm dev。";
   }
 
+  const orderLineFields = Object.values(Prisma.OrderLineScalarFieldEnum) as string[];
+  if (!orderLineFields.includes("platformSku")) {
+    return "订单行平台 SKU 字段未生效：请先 Ctrl+C 停止 pnpm dev，在 apps/web 执行 pnpm exec prisma migrate deploy && pnpm db:generate，再重新 pnpm dev。";
+  }
+
   return null;
 }
 

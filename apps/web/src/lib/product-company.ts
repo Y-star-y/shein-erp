@@ -117,9 +117,12 @@ export async function resolveProductAttributesForSave(
   }
 
   const editable = getEditableProductAttributes(normalized);
-  const attributeErrors = validateProductAttributes(editable.filter((attribute) => attribute.key.trim()));
+  const attributeErrors = validateProductAttributes(
+    editable.filter((attribute) => attribute.key.trim()),
+    { attributeCount: editable.length },
+  );
   if (Object.keys(attributeErrors).length) {
-    return { error: "参数填写有误" as const };
+    return { error: attributeErrors.form ?? "参数填写有误" };
   }
 
   return {

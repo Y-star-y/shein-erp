@@ -1,6 +1,8 @@
 import { unmappedGroupKey } from "@shein-erp/core";
 import { canAccessModule } from "@/lib/permissions";
+import { exceptionOrderOr, shippableOrderWhere } from "@/lib/order-scope";
 import { orderLinesWhereForSession, ordersWhereForSession } from "@/lib/store-access";
+import { unresolvedBindingLineWhere } from "@/lib/order-scope";
 import { prisma } from "@/lib/prisma";
 import type { AppNotification, NotificationsSummary } from "@shein-erp/shared";
 import type { UnmappedOrderLine, UnmappedSkcGroup } from "@shein-erp/shared";
@@ -12,9 +14,11 @@ export async function fetchUnmappedOrderLines(
 ): Promise<UnmappedOrderLine[]> {
   const lines = await prisma.orderLine.findMany({
     where: {
-      mappingStatus: "unmapped",
-      ...orderLinesWhereForSession(session),
-      ...(storeId ? { order: { storeId } } : {}),
+      AND: [
+        unresolvedBindingLineWhere,
+        orderLinesWhereForSession(session),
+        ...(storeId ? [{ order: { storeId } }] : []),
+      ],
     },
     include: {
       order: {
@@ -27,19 +31,20 @@ export async function fetchUnmappedOrderLines(
   const results: UnmappedOrderLine[] = [];
 
   for (const line of lines) {
-    const sellerSku = line.sellerSku.trim();
-    const platformSku = line.platformSku?.trim() || "";
-    const groupKey = unmappedGroupKey(sellerSku, platformSku);
+    const platformSku = line.platformSku.trim();
+    const groupKey = unmappedGroupKey("", platformSku);
     if (!groupKey) continue;
 
     results.push({
       lineId: line.id,
       groupKey,
       platformSkc: line.platformSkc?.trim() || "",
-      sellerSku,
+      sellerSku: line.sellerSku?.trim() || "",
       platformSku,
       platformSpu: line.platformSpu || "",
       sheinProductName: line.productName,
+      spec: line.spec?.trim() || "",
+      articleNo: line.articleNo?.trim() || "",
       storeName: line.order.store?.name || "",
       orderCount: 1,
       sampleOrderNo: line.order.orderNo,
@@ -71,6 +76,8 @@ export async function fetchUnmappedGroups(session: Session): Promise<UnmappedSkc
       platformSku: line.platformSku,
       platformSpu: line.platformSpu,
       sheinProductName: line.sheinProductName,
+      spec: line.spec,
+      articleNo: line.articleNo,
       storeName: line.storeName,
       orderCount: 1,
       sampleOrderNo: line.orderNo,
@@ -83,8 +90,9 @@ export async function fetchUnmappedGroups(session: Session): Promise<UnmappedSkc
 export async function countPendingOrders(session: Session): Promise<number> {
   return prisma.order.count({
     where: {
-      status: "PENDING",
+      status: { in: ["PENDING", "READY"] },
       ...ordersWhereForSession(session),
+      ...shippableOrderWhere,
     },
   });
 }
@@ -100,9 +108,10 @@ export type PendingStoreCount = {
 export async function fetchPendingStoreCounts(session: Session): Promise<PendingStoreCount[]> {
   const orders = await prisma.order.findMany({
     where: {
-      status: "PENDING",
+      status: { in: ["PENDING", "READY"] },
       storeId: { not: null },
       ...ordersWhereForSession(session),
+      ...shippableOrderWhere,
     },
     select: {
       storeId: true,
@@ -139,28 +148,24 @@ export type UnmappedStoreCount = {
   count: number;
 };
 
-/** 按店铺统计待绑定订单行数量 */
+/** 按店铺统计含待绑定商品的异常订单数（整单计 1，不按行数累加） */
 export async function fetchUnmappedStoreCounts(session: Session): Promise<UnmappedStoreCount[]> {
-  const lines = await prisma.orderLine.findMany({
+  const orders = await prisma.order.findMany({
     where: {
-      mappingStatus: "unmapped",
-      ...orderLinesWhereForSession(session),
+      ...ordersWhereForSession(session),
+      OR: exceptionOrderOr,
     },
     select: {
-      order: {
-        select: {
-          storeId: true,
-          store: { select: { id: true, name: true, platform: true, active: true } },
-        },
-      },
+      storeId: true,
+      store: { select: { id: true, name: true, platform: true, active: true } },
     },
   });
 
   const byStore = new Map<string, UnmappedStoreCount>();
 
-  for (const line of lines) {
-    const storeId = line.order.storeId;
-    const store = line.order.store;
+  for (const order of orders) {
+    const storeId = order.storeId;
+    const store = order.store;
     if (!storeId || !store) continue;
     const existing = byStore.get(storeId);
     if (existing) {
@@ -207,8 +212,7 @@ export async function buildNotificationsSummary(session: Session): Promise<Notif
         ? {
             storeTarget: {
               storeId: topUnmappedStore.storeId,
-              tab: "orders" as const,
-              ordersFilter: "unmapped" as const,
+              tab: "binding" as const,
             },
           }
         : { taskId: "order_bind" as const }),
